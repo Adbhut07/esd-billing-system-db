@@ -1,0 +1,163 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// Admin users who manage the system
+model Admin {
+  id                Int      @id @default(autoincrement())
+  username          String   @unique @db.VarChar(50)
+  email             String   @unique @db.VarChar(100)
+  password          String   @db.VarChar(255) // Hashed password
+  fullName          String   @map("full_name") @db.VarChar(100)
+  role              AdminRole @default(ADMIN)
+  isActive          Boolean  @default(true) @map("is_active")
+  refreshTokens     Json?    @map("refresh_tokens") // Store refresh tokens as JSON array
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([email])
+  @@index([username])
+  @@index([isActive])
+  @@map("admin")
+}
+
+// Admin roles enum
+enum AdminRole {
+  SUPER_ADMIN // Full access
+  ADMIN       // Standard admin access
+  OPERATOR    // Limited access - only readings and bill generation
+}
+
+// Charge rates configuration
+model Charges {
+  id     Int    @id @default(autoincrement())
+  name   String @unique @db.VarChar(50)
+  amount Float  @default(0)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("charges")
+}
+
+// Localities/Sectors in the colony
+model Mohalla {
+  id     Int     @id @default(autoincrement())
+  name   String  @db.VarChar(100)
+  number String  @unique @db.VarChar(20)
+  houses House[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([number])
+  @@map("mohalla")
+}
+
+// Houses/Consumers (removed authentication fields)
+model House {
+  id                     Int      @id @default(autoincrement())
+  mohallaId              Int      @map("mohalla_id")
+  houseNumber            String   @map("house_number") @db.VarChar(20)
+  consumerCode           String   @unique @map("consumer_code") @db.VarChar(30)
+  department             String?  @db.VarChar(100)
+  licenseeName           String   @map("licensee_name") @db.VarChar(150)
+  electricityMeterNumber String?  @unique @map("electricity_meter_number") @db.VarChar(30)
+  waterMeterNumber       String?  @unique @map("water_meter_number") @db.VarChar(30)
+  mobileNumber           String?  @map("mobile_number") @db.VarChar(15)
+  email                  String?  @db.VarChar(100)
+  licenseFee             Decimal  @default(0) @map("license_fee") @db.Decimal(10, 2)
+  residenceFee           Decimal  @default(0) @map("residence_fee") @db.Decimal(10, 2)
+  isActive               Boolean  @default(true) @map("is_active")
+  
+  // Relations
+  mohalla   Mohalla   @relation(fields: [mohallaId], references: [id], onDelete: Cascade)
+  readings  Reading[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([mohallaId])
+  @@index([consumerCode])
+  @@index([mobileNumber])
+  @@index([email])
+  @@index([isActive])
+  @@map("house")
+}
+
+// Monthly meter readings and billing
+model Reading {
+  id                            Int       @id @default(autoincrement())
+  houseId                       Int       @map("house_id")
+  month                         DateTime  @db.Date
+  
+  // Electricity readings
+  electricityImportReading      Int       @default(0) @map("electricity_import_reading")
+  electricityExportReading      Int       @default(0) @map("electricity_export_reading")
+  electricityExportCarryForward Int       @default(0) @map("electricity_export_carry_forward")
+  electricityConsumption        Int       @default(0) @map("electricity_consumption")
+  electricityBilledEnergy       Int       @default(0) @map("electricity_billed_energy")
+  electricityReadingUploadDate  DateTime? @map("electricity_reading_upload_date") @db.DateTime(0)
+  maxDemand                     Decimal   @default(0) @map("max_demand") @db.Decimal(10, 2)
+  
+  // Water readings
+  waterReading                  Int       @default(0) @map("water_reading")
+  waterConsumption              Int       @default(0) @map("water_consumption")
+  waterReadingUploadDate        DateTime? @map("water_reading_upload_date") @db.DateTime(0)
+  
+  // Bill components
+  bill1Upto15                   Decimal   @default(0) @map("bill_1_upto_15") @db.Decimal(10, 2)
+  bill1After15                  Decimal   @default(0) @map("bill_1_after_15") @db.Decimal(10, 2)
+  bill2Upto15                   Decimal   @default(0) @map("bill_2_upto_15") @db.Decimal(10, 2)
+  bill2After15                  Decimal   @default(0) @map("bill_2_after_15") @db.Decimal(10, 2)
+  totalBillUpto15               Decimal   @default(0) @map("total_bill_upto_15") @db.Decimal(10, 2)
+  totalBillAfter15              Decimal   @default(0) @map("total_bill_after_15") @db.Decimal(10, 2)
+  
+  // Arrears
+  bill1Arrear                   Decimal   @default(0) @map("bill_1_arrear") @db.Decimal(10, 2)
+  bill2Arrear                   Decimal   @default(0) @map("bill_2_arrear") @db.Decimal(10, 2)
+  
+  // Charge breakdowns
+  fixedCharge                   Decimal   @default(0) @map("fixed_charge") @db.Decimal(10, 2)
+  electricityCharge             Decimal   @default(0) @map("electricity_charge") @db.Decimal(10, 2)
+  electricityDuty               Decimal   @default(0) @map("electricity_duty") @db.Decimal(10, 2)
+  waterCharge                   Decimal   @default(0) @map("water_charge") @db.Decimal(10, 2)
+  maintenanceCharge             Decimal   @default(0) @map("maintenance_charge") @db.Decimal(10, 2)
+  otherCharges                  Decimal   @default(0) @map("other_charges") @db.Decimal(10, 2)
+  
+  // Payment tracking
+  paidAmount                    Decimal?  @map("paid_amount") @db.Decimal(10, 2)
+  paidOn                        DateTime? @map("paid_on") @db.Date
+  
+  // Status tracking
+  billStatus                    BillStatus @default(PENDING) @map("bill_status")
+  billGeneratedAt               DateTime?  @map("bill_generated_at") @db.DateTime(0)
+  
+  // Relations
+  house House @relation(fields: [houseId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([houseId, month])
+  @@index([houseId])
+  @@index([month])
+  @@index([billStatus])
+  @@index([paidOn])
+  @@map("reading")
+}
+
+// Enum for bill status
+enum BillStatus {
+  PENDING
+  GENERATED
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+}

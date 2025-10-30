@@ -1,0 +1,1 @@
+{"version":3,"file":"jwt.config.js","sourceRoot":"","sources":["../../src/config/jwt.config.ts"],"names":[],"mappings":";;;AAAa,QAAA,SAAS,GAAG;IACvB,iBAAiB,EAAE,OAAO,CAAC,GAAG,CAAC,iBAAiB,IAAI,6CAA6C;IACjG,kBAAkB,EAAE,OAAO,CAAC,GAAG,CAAC,kBAAkB,IAAI,8CAA8C;IACpG,iBAAiB,EAAE,KAAc,EAAE,aAAa;IAChD,kBAAkB,EAAE,IAAa,EAAE,SAAS;CAC7C,CAAC"}
