@@ -23,6 +23,13 @@ router.post(
   ElectricityController.uploadElectricityReading
 );
 
+// Upload new reading (ADMIN and OPERATOR can upload)
+router.post(
+  '/bulk-upload',
+  authorize('SUPER_ADMIN', 'ADMIN', 'OPERATOR'),
+  ElectricityController.bulkUploadReadings
+);
+
 // Update reading (ADMIN and OPERATOR can update)
 router.put(
   '/:id',
