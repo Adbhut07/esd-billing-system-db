@@ -6,8 +6,6 @@ import waterReducer from "./slices/waterSlice"
 import billReducer from "./slices/billSlice"
 import adminReducer from "./slices/adminSlice"
 import mohallaReducer from "./slices/mohallaSlice"
-import reportsReducer from "./slices/reportsSlice"
-import chargesReducer from "./slices/chargesSlice"
 import settingsReducer from "./slices/settingsSlice"
 
 export const store = configureStore({
@@ -19,8 +17,6 @@ export const store = configureStore({
     bill: billReducer,
     admin: adminReducer,
     mohalla: mohallaReducer,
-    reports: reportsReducer,
-    charges: chargesReducer,
     settings: settingsReducer,
   },
 })

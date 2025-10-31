@@ -24,7 +24,7 @@ interface BillState {
   generateProgress: number;
   generateResults: { success: number; failed: number; errors: string[] };
   pagination: { page: number; limit: number; total: number };
-  filters: { sector: string | null; status: string | null; month: number | null; dateRange: any };
+  filters: { sector: string | null; status: string | null; month: number | null; dateRange: any; search: string };
 }
 
 const initialState: BillState = {
@@ -35,14 +35,19 @@ const initialState: BillState = {
   generateProgress: 0,
   generateResults: { success: 0, failed: 0, errors: [] },
   pagination: { page: 1, limit: 50, total: 0 },
-  filters: { sector: null, status: null, month: null, dateRange: null }
+  filters: { sector: null, status: null, month: null, dateRange: null, search: '' }
 };
 
 export const fetchBills = createAsyncThunk(
   'bill/fetchBills',
-  async (params: any, { rejectWithValue }: any) => {
+  async (params: any, { getState, rejectWithValue }: any) => {
     try {
-      const response = await api.get('/bill', { params });
+      const state = getState();
+      // Skip fetch if data already exists and no filters changed
+      if (state.bill.bills.length > 0 && !params.search && !params.status && !params.month) {
+        return state.bill;
+      }
+      const response = await api.get('/bills', { params });
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch bills');
@@ -52,9 +57,14 @@ export const fetchBills = createAsyncThunk(
 
 export const fetchBillById = createAsyncThunk(
   'bill/fetchBillById',
-  async (id: string, { rejectWithValue }: any) => {
+  async (id: string, { getState, rejectWithValue }: any) => {
     try {
-      const response = await api.get(`/bill/${id}`);
+      const state = getState();
+      // Skip fetch if data already cached
+      if (state.bill.currentBill && (state.bill.currentBill as any)._id === id) {
+        return state.bill.currentBill;
+      }
+      const response = await api.get(`/bills/${id}`);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch bill');
@@ -66,7 +76,7 @@ export const generateSingleBill = createAsyncThunk(
   'bill/generateSingle',
   async (data: any, { rejectWithValue }: any) => {
     try {
-      const response = await api.post('/bill/generate', data);
+      const response = await api.post('/bills/generate', data);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to generate bill');
@@ -78,7 +88,7 @@ export const generateBulkBills = createAsyncThunk(
   'bill/generateBulk',
   async (data: any, { rejectWithValue }: any) => {
     try {
-      const response = await api.post('/bill/bulk-generate', data);
+      const response = await api.post('/bills/bulk-generate', data);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to generate bulk bills');
@@ -90,7 +100,7 @@ export const recordPayment = createAsyncThunk(
   'bill/recordPayment',
   async (data: any, { rejectWithValue }: any) => {
     try {
-      const response = await api.put('/bill/record-payment', data);
+      const response = await api.put('/bills/record-payment', data);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to record payment');
@@ -102,7 +112,7 @@ export const updateBillCharges = createAsyncThunk(
   'bill/updateCharges',
   async (data: any, { rejectWithValue }: any) => {
     try {
-      const response = await api.put('/bill/update-charges', data);
+      const response = await api.put('/bills/update-charges', data);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update charges');
@@ -114,7 +124,7 @@ export const deleteBill = createAsyncThunk(
   'bill/deleteBill',
   async (id: string, { rejectWithValue }: any) => {
     try {
-      await api.delete(`/bill/${id}`);
+      await api.delete(`/bills/${id}`);
       return id;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete bill');
@@ -126,7 +136,7 @@ export const fetchBillSummary = createAsyncThunk(
   'bill/fetchSummary',
   async (houseId: string, { rejectWithValue }: any) => {
     try {
-      const response = await api.get(`/bill/summary/${houseId}`);
+      const response = await api.get(`/bills/summary/${houseId}`);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch summary');
@@ -139,7 +149,7 @@ const billSlice = createSlice({
   initialState,
   reducers: {
     setFilters: (state, action: any) => {
-      state.filters = action.payload;
+      state.filters = { ...state.filters, ...action.payload };
       state.pagination.page = 1;
     },
     setPagination: (state, action: any) => {

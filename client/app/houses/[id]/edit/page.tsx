@@ -31,13 +31,13 @@ export default function EditHousePage() {
     if (id) {
       dispatch(fetchHouseById(id))
     }
-  }, [dispatch, id])
+  }, [])
 
   useEffect(() => {
     if (currentHouse) {
       setFormData(currentHouse)
     }
-  }, [currentHouse])
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

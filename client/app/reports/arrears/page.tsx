@@ -1,26 +1,13 @@
 'use client'
 
-import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
-import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks'
-import { fetchArrearsReport } from '@/lib/redux/slices/reportsSlice'
 import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/shared/DataTable'
-import { LoadingState } from '@/components/shared/LoadingState'
 
 export default function ArrearsReportPage() {
   const router = useRouter()
-  const dispatch = useAppDispatch()
-  const { arrearsData, loading } = useAppSelector((state) => state.reports)
-
-  useEffect(() => {
-    dispatch(fetchArrearsReport({}))
-  }, [dispatch])
-
-  if (loading) {
-    return <LoadingState type="table" count={5} />
-  }
+  const arrearsData: any[] = []
 
   const columns = [
     { header: 'House ID', accessor: 'houseId' as const },
@@ -42,7 +29,7 @@ export default function ArrearsReportPage() {
         </div>
       </div>
 
-      <DataTable data={arrearsData} columns={columns} loading={loading} />
+      <DataTable data={arrearsData} columns={columns} loading={false} />
     </div>
   )
 }

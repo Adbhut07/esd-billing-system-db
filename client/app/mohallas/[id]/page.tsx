@@ -23,7 +23,7 @@ export default function MohallaDetailPage() {
     if (id) {
       dispatch(fetchMohallaById(id))
     }
-  }, [dispatch, id])
+  }, [])
 
   const handleDelete = async () => {
     try {

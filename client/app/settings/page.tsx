@@ -1,59 +1,20 @@
 'use client'
 
-import { useEffect } from 'react'
-import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks'
-import { fetchCharges } from '@/lib/redux/slices/chargesSlice'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { LoadingState } from '@/components/shared/LoadingState'
 import { useRouter } from 'next/navigation'
 
 export default function SettingsPage() {
   const router = useRouter()
-  const dispatch = useAppDispatch()
-  const { charges, loading } = useAppSelector((state) => state.charges)
-
-  useEffect(() => {
-    dispatch(fetchCharges())
-  }, [dispatch])
-
-  if (loading) {
-    return <LoadingState type="card" count={3} />
-  }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-gray-500">Configure system settings and charges</p>
+        <p className="text-gray-500">Configure system settings</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>System Charges</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {charges && (
-              <>
-                <div>
-                  <p className="text-sm text-gray-600">Fixed Charge</p>
-                  <p className="text-lg font-semibold">₹{charges.fixedCharge}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Electricity Charge</p>
-                  <p className="text-lg font-semibold">₹{charges.electricityCharge}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Water Charge</p>
-                  <p className="text-lg font-semibold">₹{charges.waterCharge}</p>
-                </div>
-                <Button className="w-full">Edit Charges</Button>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
         <Card>
           <CardHeader>
             <CardTitle>System Configuration</CardTitle>
@@ -71,7 +32,7 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-2">
+        <Card>
           <CardHeader>
             <CardTitle>Audit Logs</CardTitle>
           </CardHeader>

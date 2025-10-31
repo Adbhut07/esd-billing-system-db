@@ -15,7 +15,7 @@ export function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-      <Navigation isOpen={sidebarOpen} />
+      <Navigation isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main
         className={cn(
           'pt-[57px] transition-all duration-300',

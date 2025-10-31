@@ -1,26 +1,13 @@
 'use client'
 
-import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
-import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks'
-import { fetchPendingReport } from '@/lib/redux/slices/reportsSlice'
 import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/shared/DataTable'
-import { LoadingState } from '@/components/shared/LoadingState'
 
 export default function PendingReportPage() {
   const router = useRouter()
-  const dispatch = useAppDispatch()
-  const { pendingData, loading } = useAppSelector((state) => state.reports)
-
-  useEffect(() => {
-    dispatch(fetchPendingReport({}))
-  }, [dispatch])
-
-  if (loading) {
-    return <LoadingState type="table" count={5} />
-  }
+  const pendingData: any[] = []
 
   const columns = [
     { header: 'House ID', accessor: 'houseId' as const },
@@ -42,7 +29,7 @@ export default function PendingReportPage() {
         </div>
       </div>
 
-      <DataTable data={pendingData} columns={columns} loading={loading} />
+      <DataTable data={pendingData} columns={columns} loading={false} />
     </div>
   )
 }

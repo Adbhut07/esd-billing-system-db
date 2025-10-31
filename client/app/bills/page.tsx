@@ -27,7 +27,7 @@ export default function BillsPage() {
 
   useEffect(() => {
     dispatch(fetchBills({ ...filters, page: pagination.page, limit: pagination.limit }))
-  }, [dispatch, filters, pagination.page])
+  }, [])
 
   const handleDelete = async () => {
     if (deleteId) {

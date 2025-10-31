@@ -1,83 +1,98 @@
-"use client"
+'use client'
 
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { useSelector, useDispatch } from "react-redux"
-import type { RootState } from "@/lib/redux/store"
-import { logout } from "@/lib/redux/slices/authSlice"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import Link from "next/link"
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 
 export default function Dashboard() {
   const router = useRouter()
-  const dispatch = useDispatch()
-  const { isAuthenticated, admin } = useSelector((state: RootState) => state.auth)
+  const dispatch = useAppDispatch()
+  const { isAuthenticated } = useAppSelector((state) => state.auth)
 
   useEffect(() => {
     if (!isAuthenticated) {
-      router.push("/")
+      router.push('/')
     }
   }, [isAuthenticated, router])
-
-  const handleLogout = () => {
-    dispatch(logout())
-    router.push("/")
-  }
 
   if (!isAuthenticated) {
     return null
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-sm text-gray-600">Welcome, {admin?.fullName}</p>
-          </div>
-          <Button variant="outline" onClick={handleLogout}>
-            Logout
-          </Button>
-        </div>
-      </header>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <p className="text-gray-500">Welcome to ESD Billing System</p>
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Electricity Readings Card */}
-          <Link href="/readings/electricity">
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow h-full">
-              <CardHeader>
-                <CardTitle className="text-xl">Electricity Readings</CardTitle>
-                <CardDescription>Upload and manage electricity meter readings</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-4xl font-bold text-blue-600">⚡</div>
-                <p className="text-sm text-gray-600 mt-4">
-                  Upload CSV/Excel files with import, export, and max demand readings
-                </p>
-              </CardContent>
-            </Card>
-          </Link>
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Total Houses</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">0</div>
+          </CardContent>
+        </Card>
 
-          {/* Water Readings Card */}
-          <Link href="/readings/water">
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow h-full">
-              <CardHeader>
-                <CardTitle className="text-xl">Water Readings</CardTitle>
-                <CardDescription>Upload and manage water meter readings</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-4xl font-bold text-blue-400">💧</div>
-                <p className="text-sm text-gray-600 mt-4">Upload CSV/Excel files with water consumption readings</p>
-              </CardContent>
-            </Card>
-          </Link>
-        </div>
-      </main>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Pending Bills</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">0</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Overdue Bills</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">0</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Total Revenue</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">₹0</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Button className="w-full" onClick={() => router.push('/houses')}>
+              Manage Houses
+            </Button>
+            <Button className="w-full" onClick={() => router.push('/bills')}>
+              View Bills
+            </Button>
+            <Button className="w-full" onClick={() => router.push('/reports')}>
+              View Reports
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-500">No recent activity</p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

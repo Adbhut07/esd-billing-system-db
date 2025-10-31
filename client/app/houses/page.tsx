@@ -27,7 +27,7 @@ export default function HousesPage() {
 
   useEffect(() => {
     dispatch(fetchHouses({ ...filters, page: pagination.page, limit: pagination.limit }))
-  }, [dispatch, filters, pagination.page])
+  }, [])
 
   const handleDelete = async () => {
     if (deleteId) {

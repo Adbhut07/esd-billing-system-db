@@ -24,7 +24,7 @@ export default function HouseDetailPage() {
     if (id) {
       dispatch(fetchHouseById(id))
     }
-  }, [dispatch, id])
+  }, [])
 
   const handleDelete = async () => {
     try {
