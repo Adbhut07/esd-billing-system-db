@@ -30,7 +30,7 @@ export const loginAdmin = createAsyncThunk(
   "auth/loginAdmin",
   async (credentials: { username: string; password: string }, { rejectWithValue }) => {
     try {
-      const response = await fetch("http://localhost:3000/api/auth/login", {
+      const response = await fetch("http://localhost:4000/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -44,6 +44,13 @@ export const loginAdmin = createAsyncThunk(
       }
 
       const data = await response.json()
+      
+      // Store tokens in localStorage
+      if (typeof window !== "undefined") {
+        localStorage.setItem("accessToken", data.data.accessToken)
+        localStorage.setItem("refreshToken", data.data.refreshToken)
+      }
+      
       return data.data
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : "Login failed")
@@ -61,6 +68,12 @@ const authSlice = createSlice({
       state.refreshToken = null
       state.isAuthenticated = false
       state.error = null
+      
+      // Clear tokens from localStorage
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("accessToken")
+        localStorage.removeItem("refreshToken")
+      }
     },
     clearError: (state) => {
       state.error = null

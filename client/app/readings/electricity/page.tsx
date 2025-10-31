@@ -86,7 +86,7 @@ export default function ElectricityReadingsPage() {
           })),
       }
 
-      const response = await fetch("http://localhost:3000/api/electricity/bulk-upload", {
+      const response = await fetch("http://localhost:4000/api/electricity/bulk-upload", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
