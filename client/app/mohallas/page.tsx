@@ -19,7 +19,7 @@ export default function MohallaPage() {
 
   useEffect(() => {
     dispatch(fetchMohallas({}))
-  }, [dispatch])
+  }, [])
 
   const handleDelete = async () => {
     if (deleteId) {

@@ -1,27 +1,13 @@
 'use client'
 
-import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
-import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks'
-import { fetchCollectionReport } from '@/lib/redux/slices/reportsSlice'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/shared/DataTable'
-import { LoadingState } from '@/components/shared/LoadingState'
 
 export default function CollectionReportPage() {
   const router = useRouter()
-  const dispatch = useAppDispatch()
-  const { collectionData, loading } = useAppSelector((state) => state.reports)
-
-  useEffect(() => {
-    dispatch(fetchCollectionReport({}))
-  }, [dispatch])
-
-  if (loading) {
-    return <LoadingState type="table" count={5} />
-  }
+  const collectionData: any[] = []
 
   const columns = [
     { header: 'House ID', accessor: 'houseId' as const },
@@ -44,7 +30,7 @@ export default function CollectionReportPage() {
         </div>
       </div>
 
-      <DataTable data={collectionData} columns={columns} loading={loading} />
+      <DataTable data={collectionData} columns={columns} loading={false} />
     </div>
   )
 }

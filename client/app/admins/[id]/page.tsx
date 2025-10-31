@@ -25,7 +25,7 @@ export default function AdminDetailPage() {
     if (id) {
       dispatch(fetchAdminById(id))
     }
-  }, [dispatch, id])
+  }, [])
 
   const handleDelete = async () => {
     try {

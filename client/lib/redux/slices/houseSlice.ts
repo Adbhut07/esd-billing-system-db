@@ -39,9 +39,14 @@ const initialState: HouseState = {
 // API Calls
 export const fetchHouses = createAsyncThunk(
   'house/fetchHouses',
-  async (params: any, { rejectWithValue }: any) => {
+  async (params: any, { getState, rejectWithValue }: any) => {
     try {
-      const response = await api.get('/house', { params });
+      const state = getState();
+      // Skip fetch if data already exists and no filters changed
+      if (state.house.houses.length > 0 && !params.search && !params.sector) {
+        return state.house;
+      }
+      const response = await api.get('/houses', { params });
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch houses');
@@ -51,9 +56,14 @@ export const fetchHouses = createAsyncThunk(
 
 export const fetchHouseById = createAsyncThunk(
   'house/fetchHouseById',
-  async (id: string, { rejectWithValue }: any) => {
+  async (id: string, { getState, rejectWithValue }: any) => {
     try {
-      const response = await api.get(`/house/${id}`);
+      const state = getState();
+      // Skip fetch if data already cached
+      if (state.house.currentHouse && state.house.currentHouse.id === id) {
+        return state.house.currentHouse;
+      }
+      const response = await api.get(`/houses/${id}`);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch house');
@@ -65,7 +75,7 @@ export const createHouse = createAsyncThunk(
   'house/createHouse',
   async (data: any, { rejectWithValue }: any) => {
     try {
-      const response = await api.post('/house', data);
+      const response = await api.post('/houses', data);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create house');
@@ -77,7 +87,7 @@ export const updateHouse = createAsyncThunk(
   'house/updateHouse',
   async ({ id, data }: { id: string; data: any }, { rejectWithValue }: any) => {
     try {
-      const response = await api.put(`/house/${id}`, data);
+      const response = await api.put(`/houses/${id}`, data);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update house');
@@ -89,7 +99,7 @@ export const deleteHouse = createAsyncThunk(
   'house/deleteHouse',
   async (id: string, { rejectWithValue }: any) => {
     try {
-      await api.delete(`/house/${id}`);
+      await api.delete(`/houses/${id}`);
       return id;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete house');
@@ -101,7 +111,7 @@ export const updateHouseFees = createAsyncThunk(
   'house/updateHouseFees',
   async ({ id, licenseFee, residenceFee }: any, { rejectWithValue }: any) => {
     try {
-      const response = await api.put(`/house/${id}`, { licenseFee, residenceFee });
+      const response = await api.put(`/houses/${id}`, { licenseFee, residenceFee });
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update fees');

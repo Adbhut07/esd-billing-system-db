@@ -1,22 +1,14 @@
 'use client'
 
-import { useEffect } from 'react'
-import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks'
-import { fetchMetrics, fetchCharts } from '@/lib/redux/slices/reportsSlice'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { LoadingState } from '@/components/shared/LoadingState'
 
 export default function ReportsPage() {
-  const dispatch = useAppDispatch()
-  const { metrics, chartData, loading } = useAppSelector((state) => state.reports)
-
-  useEffect(() => {
-    dispatch(fetchMetrics())
-    dispatch(fetchCharts())
-  }, [dispatch])
-
-  if (loading) {
-    return <LoadingState type="card" count={4} />
+  // Placeholder data - reports backend not implemented yet
+  const metrics = {
+    totalRevenue: 0,
+    collectionRate: 0,
+    pending: 0,
+    overdue: 0
   }
 
   return (

@@ -30,9 +30,14 @@ const initialState: MohallaState = {
 
 export const fetchMohallas = createAsyncThunk(
   'mohalla/fetchMohallas',
-  async (params: any, { rejectWithValue }: any) => {
+  async (params: any, { getState, rejectWithValue }: any) => {
     try {
-      const response = await api.get('/mohalla', { params });
+      const state = getState();
+      // Skip fetch if data already exists and no filters changed
+      if (state.mohalla.mohallas.length > 0 && !params.search && !params.sector) {
+        return state.mohalla;
+      }
+      const response = await api.get('/mohallas', { params });
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch sectors');
@@ -42,9 +47,14 @@ export const fetchMohallas = createAsyncThunk(
 
 export const fetchMohallaById = createAsyncThunk(
   'mohalla/fetchMohallaById',
-  async (id: string, { rejectWithValue }: any) => {
+  async (id: string, { getState, rejectWithValue }: any) => {
     try {
-      const response = await api.get(`/mohalla/${id}`);
+      const state = getState();
+      // Skip fetch if data already cached
+      if (state.mohalla.currentMohalla && state.mohalla.currentMohalla.id === id) {
+        return state.mohalla.currentMohalla;
+      }
+      const response = await api.get(`/mohallas/${id}`);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch sector');
@@ -56,7 +66,7 @@ export const createMohalla = createAsyncThunk(
   'mohalla/createMohalla',
   async (data: any, { rejectWithValue }: any) => {
     try {
-      const response = await api.post('/mohalla', data);
+      const response = await api.post('/mohallas', data);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create sector');
@@ -68,7 +78,7 @@ export const updateMohalla = createAsyncThunk(
   'mohalla/updateMohalla',
   async ({ id, data }: { id: string; data: any }, { rejectWithValue }: any) => {
     try {
-      const response = await api.put(`/mohalla/${id}`, data);
+      const response = await api.put(`/mohallas/${id}`, data);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update sector');
@@ -80,7 +90,7 @@ export const deleteMohalla = createAsyncThunk(
   'mohalla/deleteMohalla',
   async (id: string, { rejectWithValue }: any) => {
     try {
-      await api.delete(`/mohalla/${id}`);
+      await api.delete(`/mohallas/${id}`);
       return id;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete sector');

@@ -16,7 +16,7 @@ export default function AuditLogPage() {
 
   useEffect(() => {
     dispatch(fetchAuditLogs({}))
-  }, [dispatch])
+  }, [])
 
   if (loading) {
     return <LoadingState type="table" count={5} />

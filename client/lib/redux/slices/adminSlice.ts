@@ -31,9 +31,14 @@ const initialState: AdminState = {
 
 export const fetchAdmins = createAsyncThunk(
   'admin/fetchAdmins',
-  async (params: any, { rejectWithValue }: any) => {
+  async (params: any, { getState, rejectWithValue }: any) => {
     try {
-      const response = await api.get('/admin', { params });
+      const state = getState();
+      // Skip fetch if data already exists
+      if (state.admin.admins.length > 0) {
+        return state.admin;
+      }
+      const response = await api.get('/auth/users', { params });
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch admins');
@@ -43,9 +48,14 @@ export const fetchAdmins = createAsyncThunk(
 
 export const fetchAdminById = createAsyncThunk(
   'admin/fetchAdminById',
-  async (id: string, { rejectWithValue }: any) => {
+  async (id: string, { getState, rejectWithValue }: any) => {
     try {
-      const response = await api.get('/auth/profile');
+      const state = getState();
+      // Skip fetch if data already cached
+      if (state.admin.currentAdmin && state.admin.currentAdmin.id === id) {
+        return state.admin.currentAdmin;
+      }
+      const response = await api.get(`/auth/users/${id}`);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch admin');
@@ -69,7 +79,7 @@ export const updateAdmin = createAsyncThunk(
   'admin/updateAdmin',
   async ({ id, data }: { id: string; data: any }, { rejectWithValue }: any) => {
     try {
-      const response = await api.put(`/admin/${id}`, data);
+      const response = await api.put(`/auth/users/${id}`, data);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update admin');
@@ -81,7 +91,7 @@ export const deleteAdmin = createAsyncThunk(
   'admin/deleteAdmin',
   async (id: string, { rejectWithValue }: any) => {
     try {
-      await api.delete(`/admin/${id}`);
+      await api.delete(`/auth/users/${id}`);
       return id;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete admin');

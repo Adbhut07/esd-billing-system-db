@@ -21,7 +21,7 @@ export default function BillDetailPage() {
     if (id) {
       dispatch(fetchBillById(id))
     }
-  }, [dispatch, id])
+  }, [])
 
   if (loading || !currentBill) {
     return <LoadingState type="card" count={2} />

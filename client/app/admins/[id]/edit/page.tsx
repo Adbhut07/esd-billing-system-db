@@ -31,13 +31,13 @@ export default function EditAdminPage() {
     if (id) {
       dispatch(fetchAdminById(id))
     }
-  }, [dispatch, id])
+  }, [])
 
   useEffect(() => {
     if (currentAdmin) {
       setFormData(currentAdmin)
     }
-  }, [currentAdmin])
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

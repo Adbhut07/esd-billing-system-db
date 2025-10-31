@@ -14,6 +14,8 @@ router.get('/:id', electricity_controller_1.ElectricityController.getReadingById
 router.get('/house/month', electricity_controller_1.ElectricityController.getReadingByHouseAndMonth);
 // Upload new reading (ADMIN and OPERATOR can upload)
 router.post('/', (0, auth_middleware_1.authorize)('SUPER_ADMIN', 'ADMIN', 'OPERATOR'), electricity_controller_1.ElectricityController.uploadElectricityReading);
+// Upload new reading (ADMIN and OPERATOR can upload)
+router.post('/bulk-upload', (0, auth_middleware_1.authorize)('SUPER_ADMIN', 'ADMIN', 'OPERATOR'), electricity_controller_1.ElectricityController.bulkUploadReadings);
 // Update reading (ADMIN and OPERATOR can update)
 router.put('/:id', (0, auth_middleware_1.authorize)('SUPER_ADMIN', 'ADMIN', 'OPERATOR'), electricity_controller_1.ElectricityController.updateElectricityReading);
 // Delete reading (only SUPER_ADMIN and ADMIN can delete)

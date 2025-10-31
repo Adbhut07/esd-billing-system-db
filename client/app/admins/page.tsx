@@ -20,7 +20,7 @@ export default function AdminsPage() {
 
   useEffect(() => {
     dispatch(fetchAdmins({}))
-  }, [dispatch])
+  }, [])
 
   const handleDelete = async () => {
     if (deleteId) {

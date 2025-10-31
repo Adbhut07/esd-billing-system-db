@@ -28,26 +28,33 @@ const navigationItems = [
 
 interface NavigationProps {
   isOpen: boolean
+  onClose?: () => void
 }
 
-export function Navigation({ isOpen }: NavigationProps) {
+export function Navigation({ isOpen, onClose }: NavigationProps) {
   const pathname = usePathname()
   const router = useRouter()
 
+  const handleNavClick = (href: string) => {
+    router.push(href)
+  }
+
   return (
     <>
-      {/* Overlay for mobile */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
-          onClick={() => {}}
+          className="fixed inset-0 bg-black/10 z-30 lg:hidden"
+          onClick={onClose}
+          style={{
+            left: '16rem', // keep this if your sidebar is 16rem wide
+          }}
         />
       )}
 
       {/* Sidebar */}
       <nav
         className={cn(
-          'fixed top-[57px] left-0 bottom-0 z-40 bg-slate-50 border-r transition-transform duration-300 ease-in-out',
+          'fixed top-[57px] left-0 bottom-0 z-50 bg-slate-50 border-r transition-transform duration-300 ease-in-out',
           isOpen ? 'translate-x-0' : '-translate-x-full',
           'w-64'
         )}
@@ -62,7 +69,7 @@ export function Navigation({ isOpen }: NavigationProps) {
             return (
               <button
                 key={item.name}
-                onClick={() => router.push(item.href)}
+                onClick={() => handleNavClick(item.href)}
                 className={cn(
                   'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors w-full text-left',
                   isActive

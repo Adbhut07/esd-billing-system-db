@@ -24,13 +24,13 @@ export default function EditMohallaPage() {
     if (id) {
       dispatch(fetchMohallaById(id))
     }
-  }, [dispatch, id])
+  }, [])
 
   useEffect(() => {
     if (currentMohalla) {
       setFormData(currentMohalla)
     }
-  }, [currentMohalla])
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
