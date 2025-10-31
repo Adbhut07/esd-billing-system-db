@@ -82,7 +82,7 @@ export function DataTable<T extends { _id: string }>({
               data.map((row) => (
                 <TableRow key={row._id}>
                   {columns.map((column, index) => (
-                    <TableCell key={index} className={column.className}>
+                    <TableCell key={`${row._id}-${column.accessor ? String(column.accessor) : index}`} className={column.className}>
                       {column.cell
                         ? column.cell(row)
                         : column.accessor
