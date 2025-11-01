@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
+import type { Bill } from '@/lib/redux/slices/billSlice'
 
 export default function BillsPage() {
   const router = useRouter()
@@ -26,8 +27,14 @@ export default function BillsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   useEffect(() => {
-    dispatch(fetchBills({ ...filters, page: pagination.page, limit: pagination.limit }))
-  }, [])
+    dispatch(fetchBills({ 
+      page: pagination.page, 
+      limit: pagination.limit,
+      search: filters.search || undefined,
+      status: filters.status || undefined,
+      month: filters.month || undefined
+    }))
+  }, [dispatch, filters.search, filters.status, filters.month, pagination.page, pagination.limit])
 
   const handleDelete = async () => {
     if (deleteId) {
@@ -35,8 +42,14 @@ export default function BillsPage() {
         await dispatch(deleteBill(deleteId)).unwrap()
         toast.success('Bill deleted successfully')
         setDeleteId(null)
-        dispatch(fetchBills({ ...filters, page: pagination.page, limit: pagination.limit }))
-      } catch (error) {
+        dispatch(fetchBills({ 
+          page: pagination.page, 
+          limit: pagination.limit,
+          search: filters.search || undefined,
+          status: filters.status || undefined,
+          month: filters.month || undefined
+        }))
+      } catch {
         toast.error('Failed to delete bill')
       }
     }
@@ -44,42 +57,45 @@ export default function BillsPage() {
 
   const columns = [
     {
-      header: 'Bill ID',
-      accessor: '_id' as const,
+      header: 'House Number',
+      cell: (row: Bill) => `${row.house?.houseNumber || 'N/A'}`,
     },
     {
-      header: 'House ID',
-      accessor: 'houseId' as const,
+      header: 'Mohalla',
+      cell: (row: Bill) => `${row.house?.mohalla?.name || row.house?.mohalla?.number || 'N/A'}`,
     },
     {
       header: 'Month/Year',
-      cell: (row: any) => `${row.month}/${row.year}`,
+      cell: (row: Bill) => {
+        const date = new Date(row.month);
+        return `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
+      },
     },
     {
       header: 'Total Amount',
-      cell: (row: any) => `₹${row.totalAmount}`,
+      cell: (row: Bill) => `₹${row.totalBillAfter15 || 0}`,
     },
     {
       header: 'Status',
-      cell: (row: any) => <StatusBadge status={row.status || 'Pending'} />,
+      cell: (row: Bill) => <StatusBadge status={row.billStatus || 'Not Generated'} />,
     },
     {
       header: 'Actions',
-      cell: (row: any) => (
+      cell: (row: Bill) => (
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push(`/bills/${row._id}`)}
+            onClick={() => router.push(`/bills/${row.id}`)}
           >
             <Eye className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setDeleteId(row._id)}
+            onClick={() => setDeleteId(row.id.toString())}
           >
-            <Trash2 className="h-4 w-4 text-red-600" />
+            <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
         </div>
       ),
@@ -90,8 +106,8 @@ export default function BillsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Bill Management</h1>
-          <p className="text-gray-500">Manage all bills in the system</p>
+          <h1 className="text-3xl font-bold text-foreground">Bill Management</h1>
+          <p className="text-muted-foreground">Manage all bills in the system</p>
         </div>
         <Button onClick={() => router.push('/bills/generate')}>
           <Plus className="h-4 w-4 mr-2" />
@@ -102,8 +118,8 @@ export default function BillsPage() {
       <FilterBar
         searchValue={filters.search}
         onSearchChange={(value: string) => dispatch(setFilters({ search: value }))}
-        searchPlaceholder="Search by bill ID or house ID..."
-        onReset={() => dispatch(setFilters({ sector: null, status: null, month: null, dateRange: null, search: '' }))}
+        searchPlaceholder="Search by house number or mohalla..."
+        onReset={() => dispatch(setFilters({ status: null, month: null, dateRange: null, search: '' }))}
       >
         <Select
           value={filters.status || 'all'}
@@ -116,15 +132,16 @@ export default function BillsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="Pending">Pending</SelectItem>
-            <SelectItem value="Paid">Paid</SelectItem>
-            <SelectItem value="Overdue">Overdue</SelectItem>
+            <SelectItem value="GENERATED">Generated</SelectItem>
+            <SelectItem value="PARTIALLY_PAID">Partially Paid</SelectItem>
+            <SelectItem value="PAID">Paid</SelectItem>
+            <SelectItem value="OVERDUE">Overdue</SelectItem>
           </SelectContent>
         </Select>
       </FilterBar>
 
       <DataTable
-        data={bills}
+        data={bills.map(bill => ({ ...bill, _id: bill.id.toString() }))}
         columns={columns}
         pagination={{ ...pagination, totalPages: Math.ceil(pagination.total / pagination.limit) }}
         onPageChange={(page) => dispatch(setPagination({ ...pagination, page }))}

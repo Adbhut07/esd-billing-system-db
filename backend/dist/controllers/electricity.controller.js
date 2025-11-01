@@ -7,13 +7,13 @@ const prisma = new client_1.PrismaClient();
 // Zod validation schemas
 const uploadElectricityReadingSchema = zod_1.z.object({
     houseId: zod_1.z.number().int().positive(),
-    month: zod_1.z.string().datetime().or(zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
+    month: zod_1.z.string().datetime().or(zod_1.z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/)),
     importReading: zod_1.z.number().min(0),
     exportReading: zod_1.z.number().min(0),
     maxDemand: zod_1.z.number().min(0).optional(),
 });
 const bulkUploadReadingsSchema = zod_1.z.object({
-    month: zod_1.z.string().datetime().or(zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
+    month: zod_1.z.string().datetime().or(zod_1.z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/)),
     readings: zod_1.z.array(zod_1.z.object({
         houseNumber: zod_1.z.string(),
         mohallaNumber: zod_1.z.string(),

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Plus, Eye, Pencil, Trash2 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks'
 import { fetchHouses, deleteHouse, setFilters, setPagination } from '@/lib/redux/slices/houseSlice'
+import { fetchMohallas } from '@/lib/redux/slices/mohallaSlice'
 import { DataTable } from '@/components/shared/DataTable'
 import { FilterBar } from '@/components/shared/FilterBar'
 import { StatusBadge } from '@/components/shared/StatusBadge'
@@ -18,16 +19,28 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
+import type { House } from '@/lib/redux/slices/houseSlice'
 
 export default function HousesPage() {
   const router = useRouter()
   const dispatch = useAppDispatch()
   const { houses, loading, pagination, filters } = useAppSelector((state) => state.house)
+  const { mohallas } = useAppSelector((state) => state.mohalla)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   useEffect(() => {
-    dispatch(fetchHouses({ ...filters, page: pagination.page, limit: pagination.limit }))
-  }, [])
+    dispatch(fetchHouses({ 
+      page: pagination.page, 
+      limit: pagination.limit,
+      search: filters.search || undefined,
+      mohallaId: filters.mohallaId || undefined,
+      status: filters.status || undefined
+    }))
+  }, [dispatch, filters.search, filters.mohallaId, filters.status, pagination.page, pagination.limit])
+
+  useEffect(() => {
+    dispatch(fetchMohallas({ page: 1, limit: 100 }))
+  }, [dispatch])
 
   const handleDelete = async () => {
     if (deleteId) {
@@ -35,8 +48,14 @@ export default function HousesPage() {
         await dispatch(deleteHouse(deleteId)).unwrap()
         toast.success('House deleted successfully')
         setDeleteId(null)
-        dispatch(fetchHouses({ ...filters, page: pagination.page, limit: pagination.limit }))
-      } catch (error) {
+        dispatch(fetchHouses({ 
+          page: pagination.page, 
+          limit: pagination.limit,
+          search: filters.search || undefined,
+          mohallaId: filters.mohallaId || undefined,
+          status: filters.status || undefined
+        }))
+      } catch {
         toast.error('Failed to delete house')
       }
     }
@@ -44,8 +63,8 @@ export default function HousesPage() {
 
   const columns = [
     {
-      header: 'Sector',
-      accessor: 'sector' as const,
+      header: 'Mohalla',
+      cell: (row: House) => `${row.mohalla?.name || 'N/A'}`,
     },
     {
       header: 'House Number',
@@ -61,32 +80,32 @@ export default function HousesPage() {
     },
     {
       header: 'Status',
-      cell: (row: any) => <StatusBadge status={row.isActive} />,
+      cell: (row: House) => <StatusBadge status={row.isActive} />,
     },
     {
       header: 'Actions',
-      cell: (row: any) => (
+      cell: (row: House) => (
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push(`/houses/${row._id}`)}
+            onClick={() => router.push(`/houses/${row.id}`)}
           >
             <Eye className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push(`/houses/${row._id}/edit`)}
+            onClick={() => router.push(`/houses/${row.id}/edit`)}
           >
             <Pencil className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setDeleteId(row._id)}
+            onClick={() => setDeleteId(row.id)}
           >
-            <Trash2 className="h-4 w-4 text-red-600" />
+            <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
         </div>
       ),
@@ -110,22 +129,24 @@ export default function HousesPage() {
         searchValue={filters.search}
         onSearchChange={(value: string) => dispatch(setFilters({ search: value }))}
         searchPlaceholder="Search by house number or consumer code..."
-        onReset={() => dispatch(setFilters({ sector: null, status: true, search: '' }))}
+        onReset={() => dispatch(setFilters({ mohallaId: null, status: true, search: '' }))}
       >
         <Select
-          value={filters.sector || 'all'}
+          value={filters.mohallaId?.toString() || 'all'}
           onValueChange={(value: string) =>
-            dispatch(setFilters({ sector: value === 'all' ? null : value }))
+            dispatch(setFilters({ ...filters, mohallaId: value === 'all' ? null : Number(value) }))
           }
         >
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Select Sector" />
+            <SelectValue placeholder="Select Mohalla" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Sectors</SelectItem>
-            <SelectItem value="A">Sector A</SelectItem>
-            <SelectItem value="B">Sector B</SelectItem>
-            <SelectItem value="C">Sector C</SelectItem>
+            <SelectItem value="all">All Mohallas</SelectItem>
+            {mohallas.map((mohalla) => (
+              <SelectItem key={mohalla.id} value={mohalla.id.toString()}>
+                {mohalla.sectorName} ({mohalla.sectorNumber})
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </FilterBar>

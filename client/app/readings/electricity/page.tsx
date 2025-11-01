@@ -63,27 +63,24 @@ export default function ElectricityReadingsPage() {
     setSuccess(null)
 
     try {
-      // Map mohalla names to numbers
-      const mohallaMap: Record<string, string> = {
-        "Prem Nagar": "3",
-        "Vidyut Nagar": "1",
-        "Swet Nagar": "2",
-        "Soami Nagar": "4",
-        "Karyavir Nagar": "5",
-        "Saran Ashram Nagar": "6",
-      }
-
       const payload = {
         month,
         readings: readings
           .filter((r) => r.importReading || r.exportReading || r.maxDemand)
-          .map((r) => ({
-            houseNumber: r.houseNumber,
-            mohallaNumber: mohallaMap[r.mohalla] || "0",
-            importReading: r.importReading ? Number.parseInt(r.importReading) : null,
-            exportReading: r.exportReading ? Number.parseInt(r.exportReading) : null,
-            maxDemand: r.maxDemand ? Number.parseFloat(r.maxDemand) : null,
-          })),
+          .map((r) => {
+            // Parse mohalla number from house number (format: "mohalla/house")
+            const houseParts = r.houseNumber.split('/');
+            const mohallaNumber = houseParts.length > 1 ? houseParts[0] : '0';
+            const actualHouseNumber = houseParts.length > 1 ? houseParts[1] : r.houseNumber;
+
+            return {
+              houseNumber: actualHouseNumber,
+              mohallaNumber: mohallaNumber,
+              importReading: r.importReading ? Number.parseInt(r.importReading) : null,
+              exportReading: r.exportReading ? Number.parseInt(r.exportReading) : null,
+              maxDemand: r.maxDemand ? Number.parseFloat(r.maxDemand) : null,
+            };
+          }),
       }
 
       const response = await fetch("http://localhost:4000/api/electricity/bulk-upload", {

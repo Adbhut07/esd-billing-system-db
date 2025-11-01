@@ -3,7 +3,7 @@ import api from '../../api';
 
 interface House {
   id: string;
-  mohallaId: string;
+  mohallaId: number;
   houseNumber: string;
   consumerCode: string;
   licenseeName: string;
@@ -16,6 +16,11 @@ interface House {
   residenceFee: number;
   isActive: boolean;
   createdAt: string;
+  mohalla: {
+    id: number;
+    name: string;
+    number: string;
+  };
 }
 
 interface HouseState {
@@ -24,7 +29,7 @@ interface HouseState {
   loading: boolean;
   error: string | null;
   pagination: { page: number; limit: number; total: number };
-  filters: { sector: string | null; status: boolean | null; search: string };
+  filters: { mohallaId: number | null; status: boolean | null; search: string };
 }
 
 const initialState: HouseState = {
@@ -33,88 +38,88 @@ const initialState: HouseState = {
   loading: false,
   error: null,
   pagination: { page: 1, limit: 50, total: 0 },
-  filters: { sector: null, status: true, search: '' }
+  filters: { mohallaId: null, status: true, search: '' }
 };
 
 // API Calls
 export const fetchHouses = createAsyncThunk(
   'house/fetchHouses',
-  async (params: any, { getState, rejectWithValue }: any) => {
+  async (params: { page?: number; limit?: number; search?: string; mohallaId?: number; status?: boolean }, { getState, rejectWithValue }) => {
     try {
-      const state = getState();
+      const state = getState() as { house: HouseState };
       // Skip fetch if data already exists and no filters changed
-      if (state.house.houses.length > 0 && !params.search && !params.sector) {
+      if (state.house.houses.length > 0 && !params.search && !params.mohallaId) {
         return state.house;
       }
       const response = await api.get('/houses', { params });
       return response.data;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch houses');
+    } catch (error: unknown) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch houses');
     }
   }
 );
 
 export const fetchHouseById = createAsyncThunk(
   'house/fetchHouseById',
-  async (id: string, { getState, rejectWithValue }: any) => {
+  async (id: string, { getState, rejectWithValue }) => {
     try {
-      const state = getState();
+      const state = getState() as { house: HouseState };
       // Skip fetch if data already cached
       if (state.house.currentHouse && state.house.currentHouse.id === id) {
         return state.house.currentHouse;
       }
       const response = await api.get(`/houses/${id}`);
       return response.data;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch house');
+    } catch (error: unknown) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch house');
     }
   }
 );
 
 export const createHouse = createAsyncThunk(
   'house/createHouse',
-  async (data: any, { rejectWithValue }: any) => {
+  async (data: Partial<House>, { rejectWithValue }) => {
     try {
       const response = await api.post('/houses', data);
       return response.data;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to create house');
+    } catch (error: unknown) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to create house');
     }
   }
 );
 
 export const updateHouse = createAsyncThunk(
   'house/updateHouse',
-  async ({ id, data }: { id: string; data: any }, { rejectWithValue }: any) => {
+  async ({ id, data }: { id: string; data: Partial<House> }, { rejectWithValue }) => {
     try {
       const response = await api.put(`/houses/${id}`, data);
       return response.data;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to update house');
+    } catch (error: unknown) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to update house');
     }
   }
 );
 
 export const deleteHouse = createAsyncThunk(
   'house/deleteHouse',
-  async (id: string, { rejectWithValue }: any) => {
+  async (id: string, { rejectWithValue }) => {
     try {
       await api.delete(`/houses/${id}`);
       return id;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to delete house');
+    } catch (error: unknown) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to delete house');
     }
   }
 );
 
 export const updateHouseFees = createAsyncThunk(
   'house/updateHouseFees',
-  async ({ id, licenseFee, residenceFee }: any, { rejectWithValue }: any) => {
+  async ({ id, licenseFee, residenceFee }: { id: string; licenseFee: number; residenceFee: number }, { rejectWithValue }) => {
     try {
       const response = await api.put(`/houses/${id}`, { licenseFee, residenceFee });
       return response.data;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to update fees');
+    } catch (error: unknown) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to update fees');
     }
   }
 );
@@ -211,3 +216,4 @@ const houseSlice = createSlice({
 
 export const { setFilters, setPagination, clearError } = houseSlice.actions;
 export default houseSlice.reducer;
+export type { House };
