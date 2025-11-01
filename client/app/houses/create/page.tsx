@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks'
 import { createHouse } from '@/lib/redux/slices/houseSlice'
+import { fetchMohallas } from '@/lib/redux/slices/mohallaSlice'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,14 +17,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export default function CreateHousePage() {
   const router = useRouter()
   const dispatch = useAppDispatch()
   const { loading } = useAppSelector((state) => state.house)
+  const { mohallas, loading: mohallasLoading } = useAppSelector((state) => state.mohalla)
   const [formData, setFormData] = useState({
-    sector: '',
+    mohallaId: '',
     houseNumber: '',
     consumerCode: '',
     licenseeName: '',
@@ -36,13 +38,24 @@ export default function CreateHousePage() {
     residenceFee: '',
   })
 
+  useEffect(() => {
+    dispatch(fetchMohallas({ page: 1, limit: 100 }))
+  }, [dispatch])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await dispatch(createHouse(formData)).unwrap()
+      const submitData = {
+        ...formData,
+        mohallaId: Number(formData.mohallaId),
+        licenseFee: Number(formData.licenseFee) || 0,
+        residenceFee: Number(formData.residenceFee) || 0,
+      }
+      await dispatch(createHouse(submitData)).unwrap()
       toast.success('House created successfully')
       router.push('/houses')
     } catch (error) {
+      console.error('Create house error:', error)
       toast.error('Failed to create house')
     }
   }
@@ -68,16 +81,17 @@ export default function CreateHousePage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="sector">Sector *</Label>
-                <Select value={formData.sector} onValueChange={(value: string) => setFormData({ ...formData, sector: value })}>
+                <Label htmlFor="mohallaId">Mohalla *</Label>
+                <Select value={formData.mohallaId} onValueChange={(value: string) => setFormData({ ...formData, mohallaId: value })}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select sector" />
+                    <SelectValue placeholder="Select mohalla" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="A">Sector A</SelectItem>
-                    <SelectItem value="B">Sector B</SelectItem>
-                    <SelectItem value="C">Sector C</SelectItem>
-                    <SelectItem value="D">Sector D</SelectItem>
+                    {mohallas.map((mohalla) => (
+                      <SelectItem key={mohalla.id} value={mohalla.id.toString()}>
+                        {mohalla.sectorName} ({mohalla.sectorNumber})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

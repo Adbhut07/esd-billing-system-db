@@ -82,7 +82,7 @@ export const uploadBulkElectricityReadings = createAsyncThunk(
   'electricity/uploadBulk',
   async (data: any, { rejectWithValue }: any) => {
     try {
-      const response = await api.post('/electricity/bulk', data);
+      const response = await api.post('/electricity/bulk-upload', data);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to upload bulk readings');
