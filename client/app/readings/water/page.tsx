@@ -14,8 +14,8 @@ import Link from "next/link"
 
 interface WaterReading {
   id: string
+  mohallaNumber: string
   houseNumber: string
-  mohalla: string
   waterReading: string
 }
 
@@ -39,10 +39,10 @@ export default function WaterReadingsPage() {
 
   const handleFileUpload = (data: any[]) => {
     const formattedReadings: WaterReading[] = data.map((row, index) => ({
-      id: `${row.houseNumber}-${index}`,
+      id: `${row.mohallaNumber}-${row.houseNumber}-${index}`,
+      mohallaNumber: row.mohallaNumber,
       houseNumber: row.houseNumber,
-      mohalla: row.mohalla,
-      waterReading: row.rawData[1] || "",
+      waterReading: row.rawData[2] || "", // Water reading is now 3rd column (index 2)
     }))
     setReadings(formattedReadings)
     setError(null)
@@ -63,18 +63,11 @@ export default function WaterReadingsPage() {
         month,
         readings: readings
           .filter((r) => r.waterReading)
-          .map((r) => {
-            // Parse mohalla number from house number (format: "mohalla/house")
-            const houseParts = r.houseNumber.split('/');
-            const mohallaNumber = houseParts.length > 1 ? houseParts[0] : '0';
-            const actualHouseNumber = houseParts.length > 1 ? houseParts[1] : r.houseNumber;
-
-            return {
-              houseNumber: actualHouseNumber,
-              mohallaNumber: mohallaNumber,
-              waterReading: r.waterReading ? Number.parseInt(r.waterReading) : null,
-            };
-          }),
+          .map((r) => ({
+            houseNumber: r.houseNumber,
+            mohallaNumber: r.mohallaNumber,
+            waterReading: r.waterReading ? Number.parseInt(r.waterReading) : null,
+          })),
       }
 
       const response = await fetch("http://localhost:4000/api/water/bulk", {
@@ -155,6 +148,7 @@ export default function WaterReadingsPage() {
                 <ReadingsTable
                   data={readings}
                   columns={[
+                    { key: "mohallaNumber", label: "Mohalla Number" },
                     { key: "houseNumber", label: "House Number" },
                     { key: "waterReading", label: "Water Reading" },
                   ]}

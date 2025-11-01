@@ -6,8 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 interface Reading {
   id: string
+  mohallaNumber: string
   houseNumber: string
-  mohalla: string
   [key: string]: any
 }
 
@@ -31,10 +31,10 @@ export function ReadingsTable({ data, columns, onDataChange }: ReadingsTableProp
 
   const groupedData = data.reduce(
     (acc, row) => {
-      if (!acc[row.mohalla]) {
-        acc[row.mohalla] = []
+      if (!acc[row.mohallaNumber]) {
+        acc[row.mohallaNumber] = []
       }
-      acc[row.mohalla].push(row)
+      acc[row.mohallaNumber].push(row)
       return acc
     },
     {} as Record<string, Reading[]>,
@@ -42,9 +42,9 @@ export function ReadingsTable({ data, columns, onDataChange }: ReadingsTableProp
 
   return (
     <div className="space-y-6">
-      {Object.entries(groupedData).map(([mohalla, rows]) => (
-        <div key={mohalla} className="space-y-2">
-          <h3 className="text-lg font-semibold text-gray-900">{mohalla}</h3>
+      {Object.entries(groupedData).map(([mohallaNumber, rows]) => (
+        <div key={mohallaNumber} className="space-y-2">
+          <h3 className="text-lg font-semibold text-gray-900">Mohalla {mohallaNumber}</h3>
           <div className="overflow-x-auto border rounded-lg">
             <Table>
               <TableHeader>
@@ -61,7 +61,7 @@ export function ReadingsTable({ data, columns, onDataChange }: ReadingsTableProp
                   <TableRow key={row.id} className="hover:bg-gray-50">
                     {columns.map((col) => (
                       <TableCell key={`${row.id}-${col.key}`}>
-                        {col.key === "houseNumber" ? (
+                        {col.key === "houseNumber" || col.key === "mohallaNumber" ? (
                           <span className="font-medium">{row[col.key]}</span>
                         ) : (
                           <Input
