@@ -35,14 +35,19 @@ interface DataTableProps<T> {
   }
   onPageChange?: (page: number) => void
   loading?: boolean
+  getRowKey?: (row: T) => string | number
 }
 
-export function DataTable<T extends { _id: string }>({
+export function DataTable<T>({
   data,
   columns,
   pagination,
   onPageChange,
   loading,
+  getRowKey = (row: T) => {
+    const r = row as Record<string, string | number>
+    return r._id || r.id
+  },
 }: DataTableProps<T>) {
   return (
     <div className="space-y-4">
@@ -80,9 +85,9 @@ export function DataTable<T extends { _id: string }>({
               </TableRow>
             ) : (
               data.map((row) => (
-                <TableRow key={row._id}>
+                <TableRow key={getRowKey(row)}>
                   {columns.map((column, index) => (
-                    <TableCell key={`${row._id}-${column.accessor ? String(column.accessor) : index}`} className={column.className}>
+                    <TableCell key={`${getRowKey(row)}-${column.accessor ? String(column.accessor) : index}`} className={column.className}>
                       {column.cell
                         ? column.cell(row)
                         : column.accessor

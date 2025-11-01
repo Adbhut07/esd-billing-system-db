@@ -21,7 +21,7 @@ export default function BillDetailPage() {
     if (id) {
       dispatch(fetchBillById(id))
     }
-  }, [])
+  }, [dispatch, id])
 
   if (loading || !currentBill) {
     return <LoadingState type="card" count={2} />
@@ -47,20 +47,24 @@ export default function BillDetailPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm text-gray-500">Bill ID</p>
-              <p className="font-semibold">{(currentBill as any)._id}</p>
+              <p className="text-sm text-gray-500">Reading ID</p>
+              <p className="font-semibold">{currentBill.id}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">House ID</p>
-              <p className="font-semibold">{currentBill.houseId}</p>
+              <p className="text-sm text-gray-500">House Number</p>
+              <p className="font-semibold">{currentBill.house?.houseNumber || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Mohalla</p>
+              <p className="font-semibold">{currentBill.house?.mohalla?.name || currentBill.house?.mohalla?.number || 'N/A'}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Month/Year</p>
-              <p className="font-semibold">{currentBill.month}/{currentBill.year}</p>
+              <p className="font-semibold">{new Date(currentBill.month).toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Status</p>
-              <StatusBadge status={(currentBill as any).status || 'Pending'} />
+              <StatusBadge status={currentBill.billStatus || 'PENDING'} />
             </div>
           </CardContent>
         </Card>
@@ -71,16 +75,16 @@ export default function BillDetailPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm text-gray-500">Bill 1 Amount</p>
-              <p className="font-semibold">₹{currentBill.bill1Amount || 0}</p>
+              <p className="text-sm text-gray-500">Bill 1 Amount (Electricity)</p>
+              <p className="font-semibold">₹{currentBill.bill1After15 || 0}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Bill 2 Amount</p>
-              <p className="font-semibold">₹{currentBill.bill2Amount || 0}</p>
+              <p className="text-sm text-gray-500">Bill 2 Amount (Water & Other)</p>
+              <p className="font-semibold">₹{currentBill.bill2After15 || 0}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Total Amount</p>
-              <p className="text-lg font-bold">₹{currentBill.totalAmount || 0}</p>
+              <p className="text-lg font-bold">₹{currentBill.totalBillAfter15 || 0}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Paid Amount</p>

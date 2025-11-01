@@ -8,12 +8,12 @@ const prisma = new PrismaClient();
 // Zod validation schemas
 const uploadWaterReadingSchema = z.object({
   houseId: z.number().int().positive(),
-  month: z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
+  month: z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/)),
   waterReading: z.number().min(0),
 });
 
 const bulkUploadWaterReadingsSchema = z.object({
-  month: z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
+  month: z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/)),
   readings: z.array(
     z.object({
       houseNumber: z.string(),

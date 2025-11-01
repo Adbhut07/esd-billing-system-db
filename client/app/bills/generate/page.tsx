@@ -25,17 +25,31 @@ export default function GenerateBillPage() {
   const [formData, setFormData] = useState({
     month: '',
     year: new Date().getFullYear().toString(),
-    sector: '',
+    mohallaId: '',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!formData.month || !formData.mohallaId) {
+      toast.error("Please select a month and mohalla")
+      return
+    }
+
     setLoading(true)
     try {
-      await dispatch(generateBulkBills(formData)).unwrap()
+      // Format month as YYYY-MM-DD (using first day of month)
+      const monthDate = new Date(parseInt(formData.year), parseInt(formData.month) - 1, 1);
+      const formattedMonth = monthDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+
+      const payload = {
+        mohallaId: Number(formData.mohallaId),
+        month: formattedMonth,
+      }
+
+      await dispatch(generateBulkBills(payload)).unwrap()
       toast.success('Bills generated successfully')
       router.push('/bills')
-    } catch (error) {
+    } catch {
       toast.error('Failed to generate bills')
     } finally {
       setLoading(false)
@@ -51,7 +65,7 @@ export default function GenerateBillPage() {
         </Button>
         <div>
           <h1 className="text-3xl font-bold">Generate Bills</h1>
-          <p className="text-gray-500">Generate bills for selected period and sector</p>
+          <p className="text-gray-500">Generate bills for selected period and mohalla</p>
         </div>
       </div>
 
@@ -89,16 +103,18 @@ export default function GenerateBillPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="sector">Sector</Label>
-                <Select value={formData.sector} onValueChange={(value: string) => setFormData({ ...formData, sector: value })}>
+                <Label htmlFor="mohallaId">Mohalla *</Label>
+                <Select value={formData.mohallaId} onValueChange={(value: string) => setFormData({ ...formData, mohallaId: value })}>
                   <SelectTrigger>
-                    <SelectValue placeholder="All Sectors" />
+                    <SelectValue placeholder="Select mohalla" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Sectors</SelectItem>
-                    <SelectItem value="A">Sector A</SelectItem>
-                    <SelectItem value="B">Sector B</SelectItem>
-                    <SelectItem value="C">Sector C</SelectItem>
+                    <SelectItem value="1">Vidyut Nagar</SelectItem>
+                    <SelectItem value="2">Swet Nagar</SelectItem>
+                    <SelectItem value="3">Prem Nagar</SelectItem>
+                    <SelectItem value="4">Soami Nagar</SelectItem>
+                    <SelectItem value="5">Karyavir Nagar</SelectItem>
+                    <SelectItem value="6">Saran Ashram Nagar</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -108,7 +124,7 @@ export default function GenerateBillPage() {
               <Button type="button" variant="outline" onClick={() => router.push('/bills')}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading || !formData.month}>
+              <Button type="submit" disabled={loading || !formData.month || !formData.mohallaId}>
                 {loading ? 'Generating...' : 'Generate Bills'}
               </Button>
             </div>

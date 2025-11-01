@@ -37,27 +37,31 @@ export function Navigation({ isOpen, onClose }: NavigationProps) {
 
   const handleNavClick = (href: string) => {
     router.push(href)
+    // close overlay on mobile after navigation
+    onClose?.()
   }
 
   return (
     <>
+      {/* Overlay shown only on small screens when sidebar is open */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/10 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
           onClick={onClose}
-          style={{
-            left: '16rem', // keep this if your sidebar is 16rem wide
-          }}
+          aria-hidden
         />
       )}
 
       {/* Sidebar */}
       <nav
         className={cn(
-          'fixed top-[57px] left-0 bottom-0 z-50 bg-slate-50 border-r transition-transform duration-300 ease-in-out',
+          'fixed top-[57px] left-0 bottom-0 z-50 bg-slate-100 border-sidebar-border border-r transition-transform duration-300 ease-in-out w-64',
+          // On mobile: toggle translate based on isOpen.
+          // On large screens: always visible (lg:translate-x-0).
           isOpen ? 'translate-x-0' : '-translate-x-full',
-          'w-64'
+          'lg:translate-x-0'
         )}
+        aria-label="Sidebar"
       >
         <div className="p-4 space-y-1 overflow-y-auto h-full">
           {navigationItems.map((item) => {
@@ -73,8 +77,8 @@ export function Navigation({ isOpen, onClose }: NavigationProps) {
                 className={cn(
                   'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors w-full text-left',
                   isActive
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                 )}
               >
                 <Icon className="h-5 w-5" />

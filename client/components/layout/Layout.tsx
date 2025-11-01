@@ -17,10 +17,9 @@ export function Layout({ children }: LayoutProps) {
       <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
       <Navigation isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main
-        className={cn(
-          'pt-[57px] transition-all duration-300',
-          sidebarOpen ? 'lg:pl-64' : 'pl-0'
-        )}
+        // Always add left padding on large screens (reserve space for sidebar).
+        // On small screens the sidebar is overlayed so no padding is applied.
+        className={cn('pt-[57px] transition-all duration-300 lg:pl-64')}
       >
         <div className="p-6">{children}</div>
       </main>
