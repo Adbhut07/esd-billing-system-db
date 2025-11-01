@@ -18,33 +18,28 @@ export function CSVUploader({ onFileUpload, accept = ".csv,.xlsx" }: CSVUploader
   const parseCSV = (text: string) => {
     const lines = text.split("\n").filter((line) => line.trim())
     const data: any[] = []
-    let currentMohalla = ""
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim()
 
-      // Check if this is a mohalla header (lines without commas or with specific patterns)
+      // Skip header rows and empty lines
       if (
-        line &&
-        !line.includes(",") &&
-        line !== "House Number, Import, Export, MD" &&
-        line !== "House Number, Water Reading"
+        line.includes("Mohalla Number") ||
+        line.includes("House Number") ||
+        line === "" ||
+        line.startsWith("+91")
       ) {
-        currentMohalla = line
-        continue
-      }
-
-      // Skip header rows
-      if (line.includes("House Number") || line === "" || line.startsWith("+91")) {
         continue
       }
 
       const parts = line.split(",").map((p) => p.trim())
-      if (parts.length > 0 && parts[0]) {
+      
+      // Ensure we have at least mohalla number and house number
+      if (parts.length >= 2 && parts[0] && parts[1]) {
         data.push({
-          houseNumber: parts[0],
-          mohalla: currentMohalla,
-          rawData: parts,
+          mohallaNumber: parts[0], // First column is Mohalla Number
+          houseNumber: parts[1],   // Second column is House Number
+          rawData: parts,          // Keep all columns for further processing
         })
       }
     }

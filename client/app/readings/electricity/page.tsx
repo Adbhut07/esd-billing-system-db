@@ -14,8 +14,8 @@ import Link from "next/link"
 
 interface ElectricityReading {
   id: string
+  mohallaNumber: string
   houseNumber: string
-  mohalla: string
   importReading: string
   exportReading: string
   maxDemand: string
@@ -41,12 +41,12 @@ export default function ElectricityReadingsPage() {
 
   const handleFileUpload = (data: any[]) => {
     const formattedReadings: ElectricityReading[] = data.map((row, index) => ({
-      id: `${row.houseNumber}-${index}`,
+      id: `${row.mohallaNumber}-${row.houseNumber}-${index}`,
+      mohallaNumber: row.mohallaNumber,
       houseNumber: row.houseNumber,
-      mohalla: row.mohalla,
-      importReading: row.rawData[1] || "",
-      exportReading: row.rawData[2] || "",
-      maxDemand: row.rawData[3] || "",
+      importReading: row.rawData[2] || "", // Import is now 3rd column (index 2)
+      exportReading: row.rawData[3] || "", // Export is now 4th column (index 3)
+      maxDemand: row.rawData[4] || "",     // MD is now 5th column (index 4)
     }))
     setReadings(formattedReadings)
     setError(null)
@@ -67,20 +67,13 @@ export default function ElectricityReadingsPage() {
         month,
         readings: readings
           .filter((r) => r.importReading || r.exportReading || r.maxDemand)
-          .map((r) => {
-            // Parse mohalla number from house number (format: "mohalla/house")
-            const houseParts = r.houseNumber.split('/');
-            const mohallaNumber = houseParts.length > 1 ? houseParts[0] : '0';
-            const actualHouseNumber = houseParts.length > 1 ? houseParts[1] : r.houseNumber;
-
-            return {
-              houseNumber: actualHouseNumber,
-              mohallaNumber: mohallaNumber,
-              importReading: r.importReading ? Number.parseInt(r.importReading) : null,
-              exportReading: r.exportReading ? Number.parseInt(r.exportReading) : null,
-              maxDemand: r.maxDemand ? Number.parseFloat(r.maxDemand) : null,
-            };
-          }),
+          .map((r) => ({
+            houseNumber: r.houseNumber,
+            mohallaNumber: r.mohallaNumber,
+            importReading: r.importReading ? Number.parseInt(r.importReading) : null,
+            exportReading: r.exportReading ? Number.parseInt(r.exportReading) : null,
+            maxDemand: r.maxDemand ? Number.parseFloat(r.maxDemand) : null,
+          })),
       }
 
       const response = await fetch("http://localhost:4000/api/electricity/bulk-upload", {
@@ -161,6 +154,7 @@ export default function ElectricityReadingsPage() {
                 <ReadingsTable
                   data={readings}
                   columns={[
+                    { key: "mohallaNumber", label: "Mohalla Number" },
                     { key: "houseNumber", label: "House Number" },
                     { key: "importReading", label: "Import" },
                     { key: "exportReading", label: "Export" },
