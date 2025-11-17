@@ -304,12 +304,6 @@ class BillController {
                     },
                 },
             });
-            if (!previousReading) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Could not generate bill because the previous reading is not available',
-                });
-            }
             // Validate charges are not zero
             if (Number(currentReading.fixedCharge) === 0 &&
                 Number(currentReading.electricityCharge) === 0 &&
@@ -329,12 +323,16 @@ class BillController {
                 });
             }
             // Calculate Bill 1 (Electricity Bill)
-            // Bill 1 = fixed_charge + electricity_charge + electricity_duty + arrears from last month
-            const previousBill1Arrear = previousReading.paidAmount === null
-                ? Number(previousReading.bill1After15)
-                : previousReading.bill1Arrear !== null
-                    ? Number(previousReading.bill1Arrear)
-                    : 0;
+            // If no previous reading exists (first month), arrears will be 0
+            let previousBill1Arrear = 0;
+            if (previousReading) {
+                previousBill1Arrear =
+                    previousReading.paidAmount === null
+                        ? Number(previousReading.bill1After15)
+                        : previousReading.bill1Arrear !== null
+                            ? Number(previousReading.bill1Arrear)
+                            : 0;
+            }
             const bill1Upto15 = Number(currentReading.fixedCharge) +
                 Number(currentReading.electricityCharge) +
                 Number(currentReading.electricityDuty) +
@@ -342,12 +340,16 @@ class BillController {
             // Add 1.5% penalty after 15th
             const bill1After15 = bill1Upto15 + bill1Upto15 * 0.015;
             // Calculate Bill 2 (Water + Other Charges)
-            // Bill 2 = license_fee + residence_fee + maintenance_charge + water_charge + other_charges + arrears from last month
-            const previousBill2Arrear = previousReading.paidAmount === null
-                ? Number(previousReading.bill2After15)
-                : previousReading.bill2Arrear !== null
-                    ? Number(previousReading.bill2Arrear)
-                    : 0;
+            // If no previous reading exists (first month), arrears will be 0
+            let previousBill2Arrear = 0;
+            if (previousReading) {
+                previousBill2Arrear =
+                    previousReading.paidAmount === null
+                        ? Number(previousReading.bill2After15)
+                        : previousReading.bill2Arrear !== null
+                            ? Number(previousReading.bill2Arrear)
+                            : 0;
+            }
             let bill2Upto15 = 0;
             if (currentReading.otherCharges &&
                 !isNaN(Number(currentReading.otherCharges)) &&
@@ -396,9 +398,12 @@ class BillController {
             });
             return res.status(200).json({
                 success: true,
-                message: 'Bill generated successfully',
+                message: previousReading
+                    ? 'Bill generated successfully'
+                    : 'Bill generated successfully (first month - no previous arrears)',
                 data: {
                     reading: updatedReading,
+                    isFirstMonth: !previousReading,
                     billBreakdown: {
                         bill1: {
                             upto15: bill1Upto15,
@@ -545,9 +550,17 @@ class BillController {
                     isActive: true,
                 },
             });
+            if (houses.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'No active houses found in this mohalla',
+                });
+            }
             const results = {
                 success: 0,
                 failed: 0,
+                skipped: 0,
+                firstMonthBills: 0, // Track bills generated without previous month data
                 errors: [],
                 generated: [],
             };
@@ -571,17 +584,36 @@ class BillController {
                         });
                         continue;
                     }
-                    if (reading.billStatus === client_1.BillStatus.GENERATED || reading.billStatus === client_1.BillStatus.PAID) {
-                        results.failed++;
+                    // Check if bill is already generated
+                    if (reading.billStatus === client_1.BillStatus.GENERATED ||
+                        reading.billStatus === client_1.BillStatus.PAID ||
+                        reading.billStatus === client_1.BillStatus.PARTIALLY_PAID) {
+                        results.skipped++;
                         results.errors.push({
                             houseNumber: house.houseNumber,
-                            error: 'Bill already generated',
+                            error: `Bill already ${reading.billStatus.toLowerCase()}`,
                         });
                         continue;
                     }
-                    // Generate bill using the same logic
-                    // This is a simplified version - you might want to call the generateBill method
-                    // or extract the logic into a helper function
+                    // Validate electricity reading is entered
+                    if (reading.electricityImportReading === 0) {
+                        results.failed++;
+                        results.errors.push({
+                            houseNumber: house.houseNumber,
+                            error: 'Electricity reading has not been entered',
+                        });
+                        continue;
+                    }
+                    // Validate water reading is entered
+                    if (reading.waterReading === 0) {
+                        results.failed++;
+                        results.errors.push({
+                            houseNumber: house.houseNumber,
+                            error: 'Water reading has not been entered',
+                        });
+                        continue;
+                    }
+                    // Get previous month's reading (optional - may not exist for first month)
                     const previousMonthDate = new Date(monthDate);
                     previousMonthDate.setMonth(previousMonthDate.getMonth() - 1);
                     const previousReading = await prisma.reading.findUnique({
@@ -592,32 +624,60 @@ class BillController {
                             },
                         },
                     });
-                    if (!previousReading) {
+                    const isFirstMonth = !previousReading;
+                    // Validate charges are calculated
+                    if (Number(reading.fixedCharge) === 0 &&
+                        Number(reading.electricityCharge) === 0 &&
+                        Number(reading.electricityDuty) === 0) {
                         results.failed++;
                         results.errors.push({
                             houseNumber: house.houseNumber,
-                            error: 'Previous reading not found',
+                            error: 'Electricity charges not calculated (all charges are 0)',
                         });
                         continue;
                     }
-                    // Calculate bills (same formula as generateBill)
-                    const previousBill1Arrear = previousReading.paidAmount === null
-                        ? Number(previousReading.bill1After15)
-                        : previousReading.bill1Arrear !== null
-                            ? Number(previousReading.bill1Arrear)
-                            : 0;
+                    if (Number(house.licenseFee) === 0 &&
+                        Number(house.residenceFee) === 0 &&
+                        Number(reading.maintenanceCharge) === 0 &&
+                        Number(reading.waterCharge) === 0) {
+                        results.failed++;
+                        results.errors.push({
+                            houseNumber: house.houseNumber,
+                            error: 'Water and other charges not configured (all are 0)',
+                        });
+                        continue;
+                    }
+                    // Calculate Bill 1 (Electricity Bill)
+                    // If no previous reading exists, arrears will be 0
+                    let previousBill1Arrear = 0;
+                    if (previousReading) {
+                        previousBill1Arrear =
+                            previousReading.paidAmount === null
+                                ? Number(previousReading.bill1After15)
+                                : previousReading.bill1Arrear !== null
+                                    ? Number(previousReading.bill1Arrear)
+                                    : 0;
+                    }
                     const bill1Upto15 = Number(reading.fixedCharge) +
                         Number(reading.electricityCharge) +
                         Number(reading.electricityDuty) +
                         previousBill1Arrear;
                     const bill1After15 = bill1Upto15 + bill1Upto15 * 0.015;
-                    const previousBill2Arrear = previousReading.paidAmount === null
-                        ? Number(previousReading.bill2After15)
-                        : previousReading.bill2Arrear !== null
-                            ? Number(previousReading.bill2Arrear)
-                            : 0;
+                    // Calculate Bill 2 (Water + Other Charges)
+                    // If no previous reading exists, arrears will be 0
+                    let previousBill2Arrear = 0;
+                    if (previousReading) {
+                        previousBill2Arrear =
+                            previousReading.paidAmount === null
+                                ? Number(previousReading.bill2After15)
+                                : previousReading.bill2Arrear !== null
+                                    ? Number(previousReading.bill2Arrear)
+                                    : 0;
+                    }
                     let bill2Upto15 = 0;
-                    if (reading.otherCharges && !isNaN(Number(reading.otherCharges))) {
+                    if (reading.otherCharges &&
+                        !isNaN(Number(reading.otherCharges)) &&
+                        reading.otherCharges !== null) {
                         bill2Upto15 =
                             Number(house.licenseFee) +
                                 Number(house.residenceFee) +
@@ -635,8 +695,10 @@ class BillController {
                                 previousBill2Arrear;
                     }
                     const bill2After15 = bill2Upto15 + bill2Upto15 * 0.015;
+                    // Calculate total bills
                     const totalBillUpto15 = bill1Upto15 + bill2Upto15;
                     const totalBillAfter15 = bill1After15 + bill2After15;
+                    // Update the reading with bill amounts
                     await prisma.reading.update({
                         where: { id: reading.id },
                         data: {
@@ -651,9 +713,14 @@ class BillController {
                         },
                     });
                     results.success++;
+                    if (isFirstMonth) {
+                        results.firstMonthBills++;
+                    }
                     results.generated.push({
                         houseNumber: house.houseNumber,
                         readingId: reading.id,
+                        totalBill: totalBillAfter15,
+                        isFirstMonth,
                     });
                 }
                 catch (error) {
@@ -664,9 +731,12 @@ class BillController {
                     });
                 }
             }
+            const message = results.firstMonthBills > 0
+                ? `Bulk bill generation completed. Success: ${results.success} (${results.firstMonthBills} first month bills), Failed: ${results.failed}, Skipped: ${results.skipped}`
+                : `Bulk bill generation completed. Success: ${results.success}, Failed: ${results.failed}, Skipped: ${results.skipped}`;
             return res.status(200).json({
                 success: true,
-                message: `Bulk bill generation completed. Success: ${results.success}, Failed: ${results.failed}`,
+                message,
                 data: results,
             });
         }

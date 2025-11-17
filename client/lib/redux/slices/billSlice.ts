@@ -47,13 +47,28 @@ interface Bill {
   };
 }
 
+interface GenerateResults {
+  success: number;
+  failed: number;
+  skipped?: number;
+  errors: Array<{
+    houseNumber: string;
+    error: string;
+  }>;
+  generated?: Array<{
+    houseNumber: string;
+    readingId: number;
+    totalBill: number;
+  }>;
+}
+
 interface BillState {
   bills: Bill[];
   currentBill: Bill | null;
   loading: boolean;
   error: string | null;
   generateProgress: number;
-  generateResults: { success: number; failed: number; errors: string[] };
+  generateResults: GenerateResults;
   pagination: { page: number; limit: number; total: number };
   filters: { status: string | null; month: string | null; dateRange: { start: string; end: string } | null; search: string };
 }
@@ -64,7 +79,7 @@ const initialState: BillState = {
   loading: false,
   error: null,
   generateProgress: 0,
-  generateResults: { success: 0, failed: 0, errors: [] },
+  generateResults: { success: 0, failed: 0, skipped: 0, errors: [], generated: [] },
   pagination: { page: 1, limit: 50, total: 0 },
   filters: { status: null, month: null, dateRange: null, search: '' }
 };
@@ -80,8 +95,8 @@ export const fetchBills = createAsyncThunk(
       }
       const response = await api.get('/bills', { params });
       return response.data;
-    } catch (error: unknown) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch bills');
+    } catch (error: any) {
+      return rejectWithValue(error?.response?.data?.message || error?.message || 'Failed to fetch bills');
     }
   }
 );
@@ -97,8 +112,8 @@ export const fetchBillById = createAsyncThunk(
       }
       const response = await api.get(`/bills/${id}`);
       return response.data;
-    } catch (error: unknown) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch bill');
+    } catch (error: any) {
+      return rejectWithValue(error?.response?.data?.message || error?.message || 'Failed to fetch bill');
     }
   }
 );
@@ -109,8 +124,8 @@ export const generateSingleBill = createAsyncThunk(
     try {
       const response = await api.post('/bills/generate', data);
       return response.data;
-    } catch (error: unknown) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Failed to generate bill');
+    } catch (error: any) {
+      return rejectWithValue(error?.response?.data?.message || error?.message || 'Failed to generate bill');
     }
   }
 );
@@ -119,10 +134,14 @@ export const generateBulkBills = createAsyncThunk(
   'bill/generateBulk',
   async (data: { mohallaId: number; month: string }, { rejectWithValue }) => {
     try {
+      console.log('Sending bulk generate request:', data);
       const response = await api.post('/bills/bulk-generate', data);
+      console.log('Bulk generate response:', response.data);
       return response.data;
-    } catch (error: unknown) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Failed to generate bulk bills');
+    } catch (error: any) {
+      console.error('Bulk generate error:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to generate bulk bills';
+      return rejectWithValue(errorMessage);
     }
   }
 );
@@ -133,8 +152,8 @@ export const recordPayment = createAsyncThunk(
     try {
       const response = await api.put('/bills/record-payment', data);
       return response.data;
-    } catch (error: unknown) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Failed to record payment');
+    } catch (error: any) {
+      return rejectWithValue(error?.response?.data?.message || error?.message || 'Failed to record payment');
     }
   }
 );
@@ -145,8 +164,8 @@ export const updateBillCharges = createAsyncThunk(
     try {
       const response = await api.put('/bills/update-charges', data);
       return response.data;
-    } catch (error: unknown) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Failed to update charges');
+    } catch (error: any) {
+      return rejectWithValue(error?.response?.data?.message || error?.message || 'Failed to update charges');
     }
   }
 );
@@ -157,8 +176,8 @@ export const deleteBill = createAsyncThunk(
     try {
       await api.delete(`/bills/${id}`);
       return id;
-    } catch (error: unknown) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Failed to delete bill');
+    } catch (error: any) {
+      return rejectWithValue(error?.response?.data?.message || error?.message || 'Failed to delete bill');
     }
   }
 );
@@ -169,8 +188,8 @@ export const fetchBillSummary = createAsyncThunk(
     try {
       const response = await api.get(`/bills/summary/${houseId}`);
       return response.data;
-    } catch (error: unknown) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch summary');
+    } catch (error: any) {
+      return rejectWithValue(error?.response?.data?.message || error?.message || 'Failed to fetch summary');
     }
   }
 );
@@ -193,7 +212,7 @@ const billSlice = createSlice({
       state.error = null;
     },
     resetGenerateResults: (state) => {
-      state.generateResults = { success: 0, failed: 0, errors: [] };
+      state.generateResults = { success: 0, failed: 0, skipped: 0, errors: [], generated: [] };
       state.generateProgress = 0;
     }
   },
@@ -206,7 +225,7 @@ const billSlice = createSlice({
       .addCase(fetchBills.fulfilled, (state, action) => {
         state.loading = false;
         state.bills = action.payload.data || [];
-        state.pagination.total = action.payload.total || 0;
+        state.pagination.total = action.payload.pagination?.total || action.payload.total || 0;
       })
       .addCase(fetchBills.rejected, (state, action) => {
         state.loading = false;
@@ -239,10 +258,19 @@ const billSlice = createSlice({
       .addCase(generateBulkBills.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.generateResults = { success: 0, failed: 0, skipped: 0, errors: [], generated: [] };
       })
       .addCase(generateBulkBills.fulfilled, (state, action) => {
         state.loading = false;
-        state.generateResults = action.payload;
+        // Handle the nested data structure from backend
+        const responseData = action.payload.data || action.payload;
+        state.generateResults = {
+          success: responseData.success || 0,
+          failed: responseData.failed || 0,
+          skipped: responseData.skipped || 0,
+          errors: responseData.errors || [],
+          generated: responseData.generated || []
+        };
       })
       .addCase(generateBulkBills.rejected, (state, action) => {
         state.loading = false;
@@ -289,4 +317,4 @@ const billSlice = createSlice({
 
 export const { setFilters, setPagination, setGenerateProgress, clearError, resetGenerateResults } = billSlice.actions;
 export default billSlice.reducer;
-export type { Bill };
+export type { Bill, GenerateResults };

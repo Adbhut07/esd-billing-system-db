@@ -111,12 +111,23 @@ class ElectricityController {
         const chargeRates = await prisma.charges.findMany();
         const rates = {};
         chargeRates.forEach(charge => {
-            rates[charge.name.toLowerCase()] = charge.amount;
+            // Store both lowercase and uppercase versions for flexibility
+            const key = charge.name.toLowerCase();
+            rates[key] = charge.amount;
         });
-        const fixedCharge = (rates['fixed_charge_rate'] || 0) * billedEnergy;
-        const electricityCharge = (rates['electricity_charge_rate'] || 0) * billedEnergy;
-        const electricityDuty = (rates['electricity_duty_rate'] || 0) * billedEnergy;
-        const maintenanceCharge = (rates['maintenance_charge_rate'] || 0) * billedEnergy;
+        // Use more robust lookup with fallback
+        const fixedCharge = (rates['fixed_charge_rate'] || rates['fixedchargerate'] || 0) * billedEnergy;
+        const electricityCharge = (rates['electricity_charge_rate'] || rates['electricitychargerate'] || 0) * billedEnergy;
+        const electricityDuty = (rates['electricity_duty_rate'] || rates['electricitydutyrate'] || 0) * billedEnergy;
+        const maintenanceCharge = (rates['maintenance_charge_rate'] || rates['maintenancechargerate'] || 0) * billedEnergy;
+        console.log('Charge Rates:', rates);
+        console.log('Calculated Charges:', {
+            fixedCharge,
+            electricityCharge,
+            electricityDuty,
+            maintenanceCharge,
+            billedEnergy
+        });
         return {
             fixedCharge,
             electricityCharge,
@@ -738,6 +749,121 @@ class ElectricityController {
             return res.status(500).json({
                 success: false,
                 message: 'Failed to recalculate consumption',
+                error: error instanceof Error ? error.message : 'Unknown error',
+            });
+        }
+    }
+    // Method for first month base readings upload
+    static async initializeBaseReadings(req, res) {
+        try {
+            const { mohallaId, month, readings } = req.body;
+            // Example payload:
+            // {
+            //   "mohallaId": 1,
+            //   "month": "2025-09-01",  // Base month (one month before first real readings)
+            //   "readings": [
+            //     { "houseNumber": "1", "importReading": 12000, "exportReading": 0, "waterReading": 100, "maxDemand": 0 },
+            //     { "houseNumber": "2", "importReading": 13000, "exportReading": 0, "waterReading": 100, "maxDemand": 0 }
+            //   ]
+            // }
+            if (!mohallaId || !month || !readings || !Array.isArray(readings)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'mohallaId, month, and readings array are required',
+                });
+            }
+            const monthDate = new Date(month);
+            monthDate.setDate(1);
+            const results = {
+                success: 0,
+                failed: 0,
+                errors: [],
+                created: [],
+            };
+            for (const readingData of readings) {
+                try {
+                    const { houseNumber, importReading, exportReading, waterReading, maxDemand } = readingData;
+                    // Find house
+                    const house = await prisma.house.findFirst({
+                        where: {
+                            houseNumber: houseNumber,
+                            mohallaId: Number(mohallaId),
+                        },
+                    });
+                    if (!house) {
+                        results.failed++;
+                        results.errors.push({
+                            houseNumber,
+                            error: 'House not found',
+                        });
+                        continue;
+                    }
+                    // Check if base reading already exists
+                    const existingReading = await prisma.reading.findUnique({
+                        where: {
+                            houseId_month: {
+                                houseId: house.id,
+                                month: monthDate,
+                            },
+                        },
+                    });
+                    if (existingReading) {
+                        results.failed++;
+                        results.errors.push({
+                            houseNumber,
+                            error: 'Base reading already exists for this month',
+                        });
+                        continue;
+                    }
+                    // Create base reading (no charges, just meter readings)
+                    const reading = await prisma.reading.create({
+                        data: {
+                            houseId: house.id,
+                            month: monthDate,
+                            electricityImportReading: importReading || 0,
+                            electricityExportReading: exportReading || 0,
+                            electricityConsumption: 0,
+                            electricityBilledEnergy: 0,
+                            electricityExportCarryForward: 0,
+                            maxDemand: maxDemand || 0,
+                            waterReading: waterReading || 0,
+                            waterConsumption: 0,
+                            electricityReadingUploadDate: new Date(),
+                            waterReadingUploadDate: new Date(),
+                            // All charges remain 0 for base month
+                            fixedCharge: 0,
+                            electricityCharge: 0,
+                            electricityDuty: 0,
+                            maintenanceCharge: 0,
+                            waterCharge: 0,
+                            otherCharges: 0,
+                            billStatus: 'PENDING',
+                        },
+                    });
+                    results.success++;
+                    results.created.push({
+                        houseNumber,
+                        readingId: reading.id,
+                    });
+                }
+                catch (error) {
+                    results.failed++;
+                    results.errors.push({
+                        houseNumber: readingData.houseNumber,
+                        error: error instanceof Error ? error.message : 'Unknown error',
+                    });
+                }
+            }
+            return res.status(200).json({
+                success: true,
+                message: `Base readings initialized. Success: ${results.success}, Failed: ${results.failed}`,
+                data: results,
+            });
+        }
+        catch (error) {
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to initialize base readings',
                 error: error instanceof Error ? error.message : 'Unknown error',
             });
         }

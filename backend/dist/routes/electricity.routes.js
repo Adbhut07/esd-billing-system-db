@@ -22,5 +22,6 @@ router.put('/:id', (0, auth_middleware_1.authorize)('SUPER_ADMIN', 'ADMIN', 'OPE
 router.delete('/:id', (0, auth_middleware_1.authorize)('SUPER_ADMIN', 'ADMIN'), electricity_controller_1.ElectricityController.deleteElectricityReading);
 // Recalculate consumption
 router.post('/:id/recalculate', (0, auth_middleware_1.authorize)('SUPER_ADMIN', 'ADMIN'), electricity_controller_1.ElectricityController.recalculateConsumption);
+router.post('/initialize-base-readings', (0, auth_middleware_1.authorize)('SUPER_ADMIN', 'ADMIN', 'OPERATOR'), electricity_controller_1.ElectricityController.initializeBaseReadings);
 exports.default = router;
 //# sourceMappingURL=electricity.routes.js.map

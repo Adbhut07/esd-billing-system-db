@@ -53,7 +53,6 @@ export class WaterController {
     currentReading: number,
     monthDate: Date
   ) {
-    // Get previous month's reading
     const previousReading = await prisma.reading.findFirst({
       where: {
         houseId,
@@ -61,7 +60,7 @@ export class WaterController {
           lt: monthDate,
         },
         waterReading: {
-          gt: 0, // Only consider readings with water data
+          gt: 0,
         },
       },
       orderBy: {
@@ -72,19 +71,29 @@ export class WaterController {
     let consumption = 0;
 
     if (previousReading && previousReading.waterReading > 0) {
-      // Calculate consumption
       consumption = currentReading - previousReading.waterReading;
       
-      // Validate consumption (negative consumption might indicate meter reset or error)
       if (consumption < 0) {
-        consumption = 0; // Handle meter reset or error case
+        consumption = 0;
       }
     } else {
-      // First reading - no previous data
       consumption = 0;
     }
 
     return consumption;
+  }
+
+  // Helper method to calculate water charge
+  private static async calculateWaterCharge(waterConsumption: number) {
+    const waterChargeRate = await prisma.charges.findFirst({
+      where: { 
+        name: {
+          in: ['water_charge_rate', 'WATER_CHARGE_RATE']
+        }
+      },
+    });
+
+    return (waterChargeRate?.amount || 0) * waterConsumption;
   }
 
   // Get all water readings with filters
@@ -293,9 +302,9 @@ export class WaterController {
   }
 
   // Upload new water reading
+  // FIXED: Upload new water reading with charge calculation
   static async uploadWaterReading(req: AuthRequest, res: Response) {
     try {
-      // Validate request body
       const validationResult = uploadWaterReadingSchema.safeParse(req.body);
       
       if (!validationResult.success) {
@@ -308,11 +317,9 @@ export class WaterController {
 
       const { houseId, month, waterReading } = validationResult.data;
 
-      // Parse month to Date
       const monthDate = new Date(month);
       monthDate.setDate(1);
 
-      // Check if house exists
       const house = await prisma.house.findUnique({
         where: { id: houseId },
         include: { mohalla: true },
@@ -325,7 +332,6 @@ export class WaterController {
         });
       }
 
-      // Check if reading already exists for this month
       const existingReading = await prisma.reading.findUnique({
         where: {
           houseId_month: {
@@ -342,15 +348,18 @@ export class WaterController {
         monthDate
       );
 
+      // ADDED: Calculate water charge
+      const waterCharge = await WaterController.calculateWaterCharge(consumption);
+
       let reading;
 
       if (existingReading) {
-        // Update existing reading with water data
         reading = await prisma.reading.update({
           where: { id: existingReading.id },
           data: {
             waterReading,
             waterConsumption: consumption,
+            waterCharge, // ADDED
             waterReadingUploadDate: new Date(),
           },
           include: {
@@ -368,13 +377,13 @@ export class WaterController {
           data: reading,
         });
       } else {
-        // Create new reading with water data
         reading = await prisma.reading.create({
           data: {
             houseId,
             month: monthDate,
             waterReading,
             waterConsumption: consumption,
+            waterCharge, // ADDED
             waterReadingUploadDate: new Date(),
           },
           include: {
@@ -404,7 +413,6 @@ export class WaterController {
   // Bulk upload water readings
   static async bulkUploadWaterReadings(req: AuthRequest, res: Response) {
     try {
-      // Validate request body
       const validationResult = bulkUploadWaterReadingsSchema.safeParse(req.body);
       
       if (!validationResult.success) {
@@ -435,15 +443,12 @@ export class WaterController {
         }>,
       };
 
-      // Process each reading
       for (const readingData of readings) {
         try {
-          // Skip if water reading is null
           if (readingData.waterReading === null || readingData.waterReading === undefined) {
             continue;
           }
 
-          // Find house by house number and mohalla number
           const house = await prisma.house.findFirst({
             where: {
               houseNumber: readingData.houseNumber,
@@ -468,14 +473,15 @@ export class WaterController {
 
           const waterReading = readingData.waterReading;
 
-          // Calculate consumption
           const consumption = await WaterController.calculateWaterConsumption(
             house.id,
             waterReading,
             monthDate
           );
 
-          // Check if reading already exists
+          // ADDED: Calculate water charge
+          const waterCharge = await WaterController.calculateWaterCharge(consumption);
+
           const existingReading = await prisma.reading.findUnique({
             where: {
               houseId_month: {
@@ -488,23 +494,23 @@ export class WaterController {
           let reading;
 
           if (existingReading) {
-            // Update existing reading
             reading = await prisma.reading.update({
               where: { id: existingReading.id },
               data: {
                 waterReading,
                 waterConsumption: consumption,
+                waterCharge, // ADDED
                 waterReadingUploadDate: new Date(),
               },
             });
           } else {
-            // Create new reading
             reading = await prisma.reading.create({
               data: {
                 houseId: house.id,
                 month: monthDate,
                 waterReading,
                 waterConsumption: consumption,
+                waterCharge, // ADDED
                 waterReadingUploadDate: new Date(),
               },
             });
