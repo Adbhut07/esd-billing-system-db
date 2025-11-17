@@ -12,6 +12,7 @@ const water_routes_1 = __importDefault(require("./routes/water.routes"));
 const bill_routes_1 = __importDefault(require("./routes/bill.routes"));
 const house_routes_1 = __importDefault(require("./routes/house.routes"));
 const mohalla_routes_1 = __importDefault(require("./routes/mohalla.routes"));
+const charges_routes_1 = __importDefault(require("./routes/charges.routes"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const port = process.env.PORT || 3000;
@@ -32,6 +33,7 @@ app.use('/api/water', water_routes_1.default);
 app.use('/api/bills', bill_routes_1.default);
 app.use('/api/houses', house_routes_1.default);
 app.use('/api/mohallas', mohalla_routes_1.default);
+app.use('/api/charges', charges_routes_1.default);
 // Start server
 app.listen(port, () => {
     console.log(`⚡️ Server is running on port ${port}`);

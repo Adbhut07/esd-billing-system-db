@@ -7,6 +7,7 @@ import waterRoutes from './routes/water.routes';
 import billRoutes from './routes/bill.routes';
 import houseRoutes from './routes/house.routes';
 import mohallaRoutes from './routes/mohalla.routes';
+import chargesRoutes from './routes/charges.routes';
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.use('/api/water', waterRoutes);
 app.use('/api/bills', billRoutes);
 app.use('/api/houses', houseRoutes);
 app.use('/api/mohallas', mohallaRoutes);
+app.use('/api/charges', chargesRoutes);
 
 // Start server
 app.listen(port, () => {

@@ -51,4 +51,6 @@ router.post(
   ElectricityController.recalculateConsumption
 );
 
+router.post('/initialize-base-readings', authorize('SUPER_ADMIN', 'ADMIN', 'OPERATOR'), ElectricityController.initializeBaseReadings);
+
 export default router;

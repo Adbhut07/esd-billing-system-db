@@ -282,236 +282,240 @@ export class BillController {
   }
 
   // Generate bill for a reading (matching old formula exactly)
-  static async generateBill(req: AuthRequest, res: Response) {
-    try {
-      // Validate request body
-      const validationResult = generateBillSchema.safeParse(req.body);
-      
-      if (!validationResult.success) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid input data',
-          errors: validationResult.error.issues,
-        });
-      }
-
-      const { houseId, month } = validationResult.data;
-
-      // Parse month to Date
-      const monthDate = new Date(month);
-      monthDate.setDate(1);
-
-      // Get house details
-      const house = await prisma.house.findUnique({
-        where: { id: houseId },
-        include: { mohalla: true },
+static async generateBill(req: AuthRequest, res: Response) {
+  try {
+    // Validate request body
+    const validationResult = generateBillSchema.safeParse(req.body);
+    
+    if (!validationResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid input data',
+        errors: validationResult.error.issues,
       });
+    }
 
-      if (!house) {
-        return res.status(404).json({
-          success: false,
-          message: 'House not found',
-        });
-      }
+    const { houseId, month } = validationResult.data;
 
-      // Get current reading
-      const currentReading = await prisma.reading.findUnique({
-        where: {
-          houseId_month: {
-            houseId,
-            month: monthDate,
-          },
+    // Parse month to Date
+    const monthDate = new Date(month);
+    monthDate.setDate(1);
+
+    // Get house details
+    const house = await prisma.house.findUnique({
+      where: { id: houseId },
+      include: { mohalla: true },
+    });
+
+    if (!house) {
+      return res.status(404).json({
+        success: false,
+        message: 'House not found',
+      });
+    }
+
+    // Get current reading
+    const currentReading = await prisma.reading.findUnique({
+      where: {
+        houseId_month: {
+          houseId,
+          month: monthDate,
         },
+      },
+    });
+
+    if (!currentReading) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reading not found for this month',
       });
+    }
 
-      if (!currentReading) {
-        return res.status(404).json({
-          success: false,
-          message: 'Reading not found for this month',
-        });
-      }
+    // Validate that both electricity and water readings are entered
+    if (currentReading.electricityImportReading === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Electricity reading has not been entered',
+      });
+    }
 
-      // Validate that both electricity and water readings are entered
-      if (currentReading.electricityImportReading === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Electricity reading has not been entered',
-        });
-      }
+    if (currentReading.waterReading === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Water reading has not been entered',
+      });
+    }
 
-      if (currentReading.waterReading === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Water reading has not been entered',
-        });
-      }
+    // Get previous month's reading
+    const previousMonthDate = new Date(monthDate);
+    previousMonthDate.setMonth(previousMonthDate.getMonth() - 1);
 
-      // Get previous month's reading
-      const previousMonthDate = new Date(monthDate);
-      previousMonthDate.setMonth(previousMonthDate.getMonth() - 1);
-
-      const previousReading = await prisma.reading.findUnique({
-        where: {
-          houseId_month: {
-            houseId,
-            month: previousMonthDate,
-          },
+    const previousReading = await prisma.reading.findUnique({
+      where: {
+        houseId_month: {
+          houseId,
+          month: previousMonthDate,
         },
+      },
+    });
+
+    // Validate charges are not zero
+    if (
+      Number(currentReading.fixedCharge) === 0 &&
+      Number(currentReading.electricityCharge) === 0 &&
+      Number(currentReading.electricityDuty) === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'The values of fixed charge, electricity charge and electricity duty are not updated and are 0',
       });
+    }
 
-      if (!previousReading) {
-        return res.status(400).json({
-          success: false,
-          message: 'Could not generate bill because the previous reading is not available',
-        });
-      }
+    if (
+      Number(house.licenseFee) === 0 &&
+      Number(house.residenceFee) === 0 &&
+      Number(currentReading.maintenanceCharge) === 0 &&
+      Number(currentReading.waterCharge) === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'The values of license fee, residence fee, maintenance charges and water charges are not updated and are 0',
+      });
+    }
 
-      // Validate charges are not zero
-      if (
-        Number(currentReading.fixedCharge) === 0 &&
-        Number(currentReading.electricityCharge) === 0 &&
-        Number(currentReading.electricityDuty) === 0
-      ) {
-        return res.status(400).json({
-          success: false,
-          message: 'The values of fixed charge, electricity charge and electricity duty are not updated and are 0',
-        });
-      }
-
-      if (
-        Number(house.licenseFee) === 0 &&
-        Number(house.residenceFee) === 0 &&
-        Number(currentReading.maintenanceCharge) === 0 &&
-        Number(currentReading.waterCharge) === 0
-      ) {
-        return res.status(400).json({
-          success: false,
-          message: 'The values of license fee, residence fee, maintenance charges and water charges are not updated and are 0',
-        });
-      }
-
-      // Calculate Bill 1 (Electricity Bill)
-      // Bill 1 = fixed_charge + electricity_charge + electricity_duty + arrears from last month
-      const previousBill1Arrear =
+    // Calculate Bill 1 (Electricity Bill)
+    // If no previous reading exists (first month), arrears will be 0
+    let previousBill1Arrear = 0;
+    
+    if (previousReading) {
+      previousBill1Arrear =
         previousReading.paidAmount === null
           ? Number(previousReading.bill1After15)
           : previousReading.bill1Arrear !== null
           ? Number(previousReading.bill1Arrear)
           : 0;
+    }
 
-      const bill1Upto15 =
-        Number(currentReading.fixedCharge) +
-        Number(currentReading.electricityCharge) +
-        Number(currentReading.electricityDuty) +
-        previousBill1Arrear;
+    const bill1Upto15 =
+      Number(currentReading.fixedCharge) +
+      Number(currentReading.electricityCharge) +
+      Number(currentReading.electricityDuty) +
+      previousBill1Arrear;
 
-      // Add 1.5% penalty after 15th
-      const bill1After15 = bill1Upto15 + bill1Upto15 * 0.015;
+    // Add 1.5% penalty after 15th
+    const bill1After15 = bill1Upto15 + bill1Upto15 * 0.015;
 
-      // Calculate Bill 2 (Water + Other Charges)
-      // Bill 2 = license_fee + residence_fee + maintenance_charge + water_charge + other_charges + arrears from last month
-      const previousBill2Arrear =
+    // Calculate Bill 2 (Water + Other Charges)
+    // If no previous reading exists (first month), arrears will be 0
+    let previousBill2Arrear = 0;
+    
+    if (previousReading) {
+      previousBill2Arrear =
         previousReading.paidAmount === null
           ? Number(previousReading.bill2After15)
           : previousReading.bill2Arrear !== null
           ? Number(previousReading.bill2Arrear)
           : 0;
-
-      let bill2Upto15 = 0;
-
-      if (
-        currentReading.otherCharges &&
-        !isNaN(Number(currentReading.otherCharges)) &&
-        currentReading.otherCharges !== null
-      ) {
-        bill2Upto15 =
-          Number(house.licenseFee) +
-          Number(house.residenceFee) +
-          Number(currentReading.maintenanceCharge) +
-          Number(currentReading.otherCharges) +
-          Number(currentReading.waterCharge) +
-          previousBill2Arrear;
-      } else {
-        bill2Upto15 =
-          Number(house.licenseFee) +
-          Number(house.residenceFee) +
-          Number(currentReading.maintenanceCharge) +
-          Number(currentReading.waterCharge) +
-          previousBill2Arrear;
-      }
-
-      // Add 1.5% penalty after 15th
-      const bill2After15 = bill2Upto15 + bill2Upto15 * 0.015;
-
-      // Calculate total bills
-      const totalBillUpto15 = bill1Upto15 + bill2Upto15;
-      const totalBillAfter15 = bill1After15 + bill2After15;
-
-      // Update the reading with bill amounts
-      const updatedReading = await prisma.reading.update({
-        where: { id: currentReading.id },
-        data: {
-          bill1Upto15,
-          bill1After15,
-          bill2Upto15,
-          bill2After15,
-          totalBillUpto15,
-          totalBillAfter15,
-          billStatus: BillStatus.GENERATED,
-          billGeneratedAt: new Date(),
-        },
-        include: {
-          house: {
-            include: {
-              mohalla: true,
-            },
-          },
-        },
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: 'Bill generated successfully',
-        data: {
-          reading: updatedReading,
-          billBreakdown: {
-            bill1: {
-              upto15: bill1Upto15,
-              after15: bill1After15,
-              components: {
-                fixedCharge: Number(currentReading.fixedCharge),
-                electricityCharge: Number(currentReading.electricityCharge),
-                electricityDuty: Number(currentReading.electricityDuty),
-                arrears: previousBill1Arrear,
-              },
-            },
-            bill2: {
-              upto15: bill2Upto15,
-              after15: bill2After15,
-              components: {
-                licenseFee: Number(house.licenseFee),
-                residenceFee: Number(house.residenceFee),
-                maintenanceCharge: Number(currentReading.maintenanceCharge),
-                waterCharge: Number(currentReading.waterCharge),
-                otherCharges: Number(currentReading.otherCharges || 0),
-                arrears: previousBill2Arrear,
-              },
-            },
-            total: {
-              upto15: totalBillUpto15,
-              after15: totalBillAfter15,
-            },
-          },
-        },
-      });
-    } catch (error) {
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to generate bill',
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
     }
+
+    let bill2Upto15 = 0;
+
+    if (
+      currentReading.otherCharges &&
+      !isNaN(Number(currentReading.otherCharges)) &&
+      currentReading.otherCharges !== null
+    ) {
+      bill2Upto15 =
+        Number(house.licenseFee) +
+        Number(house.residenceFee) +
+        Number(currentReading.maintenanceCharge) +
+        Number(currentReading.otherCharges) +
+        Number(currentReading.waterCharge) +
+        previousBill2Arrear;
+    } else {
+      bill2Upto15 =
+        Number(house.licenseFee) +
+        Number(house.residenceFee) +
+        Number(currentReading.maintenanceCharge) +
+        Number(currentReading.waterCharge) +
+        previousBill2Arrear;
+    }
+
+    // Add 1.5% penalty after 15th
+    const bill2After15 = bill2Upto15 + bill2Upto15 * 0.015;
+
+    // Calculate total bills
+    const totalBillUpto15 = bill1Upto15 + bill2Upto15;
+    const totalBillAfter15 = bill1After15 + bill2After15;
+
+    // Update the reading with bill amounts
+    const updatedReading = await prisma.reading.update({
+      where: { id: currentReading.id },
+      data: {
+        bill1Upto15,
+        bill1After15,
+        bill2Upto15,
+        bill2After15,
+        totalBillUpto15,
+        totalBillAfter15,
+        billStatus: BillStatus.GENERATED,
+        billGeneratedAt: new Date(),
+      },
+      include: {
+        house: {
+          include: {
+            mohalla: true,
+          },
+        },
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: previousReading 
+        ? 'Bill generated successfully'
+        : 'Bill generated successfully (first month - no previous arrears)',
+      data: {
+        reading: updatedReading,
+        isFirstMonth: !previousReading,
+        billBreakdown: {
+          bill1: {
+            upto15: bill1Upto15,
+            after15: bill1After15,
+            components: {
+              fixedCharge: Number(currentReading.fixedCharge),
+              electricityCharge: Number(currentReading.electricityCharge),
+              electricityDuty: Number(currentReading.electricityDuty),
+              arrears: previousBill1Arrear,
+            },
+          },
+          bill2: {
+            upto15: bill2Upto15,
+            after15: bill2After15,
+            components: {
+              licenseFee: Number(house.licenseFee),
+              residenceFee: Number(house.residenceFee),
+              maintenanceCharge: Number(currentReading.maintenanceCharge),
+              waterCharge: Number(currentReading.waterCharge),
+              otherCharges: Number(currentReading.otherCharges || 0),
+              arrears: previousBill2Arrear,
+            },
+          },
+          total: {
+            upto15: totalBillUpto15,
+            after15: totalBillAfter15,
+          },
+        },
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to generate bill',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
+}
 
   // Update paid amount for a bill
   static async updatePaidAmount(req: AuthRequest, res: Response) {
@@ -616,184 +620,263 @@ export class BillController {
 
   // Bulk generate bills for all houses in a mohalla for a specific month
   static async bulkGenerateBills(req: AuthRequest, res: Response) {
-    try {
-      const { mohallaId, month } = req.body;
+  try {
+    const { mohallaId, month } = req.body;
 
-      if (!mohallaId || !month) {
-        return res.status(400).json({
-          success: false,
-          message: 'mohallaId and month are required',
-        });
-      }
-
-      const monthDate = new Date(month);
-      monthDate.setDate(1);
-
-      // Get all houses in the mohalla
-      const houses = await prisma.house.findMany({
-        where: {
-          mohallaId: Number(mohallaId),
-          isActive: true,
-        },
+    if (!mohallaId || !month) {
+      return res.status(400).json({
+        success: false,
+        message: 'mohallaId and month are required',
       });
+    }
 
-      const results = {
-        success: 0,
-        failed: 0,
-        errors: [] as Array<{
-          houseNumber: string;
-          error: string;
-        }>,
-        generated: [] as Array<{
-          houseNumber: string;
-          readingId: number;
-        }>,
-      };
+    const monthDate = new Date(month);
+    monthDate.setDate(1);
 
-      // Generate bill for each house
-      for (const house of houses) {
-        try {
-          // Check if reading exists
-          const reading = await prisma.reading.findUnique({
-            where: {
-              houseId_month: {
-                houseId: house.id,
-                month: monthDate,
-              },
+    // Get all houses in the mohalla
+    const houses = await prisma.house.findMany({
+      where: {
+        mohallaId: Number(mohallaId),
+        isActive: true,
+      },
+    });
+
+    if (houses.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No active houses found in this mohalla',
+      });
+    }
+
+    const results = {
+      success: 0,
+      failed: 0,
+      skipped: 0,
+      firstMonthBills: 0, // Track bills generated without previous month data
+      errors: [] as Array<{
+        houseNumber: string;
+        error: string;
+      }>,
+      generated: [] as Array<{
+        houseNumber: string;
+        readingId: number;
+        totalBill: number;
+        isFirstMonth: boolean;
+      }>,
+    };
+
+    // Generate bill for each house
+    for (const house of houses) {
+      try {
+        // Check if reading exists
+        const reading = await prisma.reading.findUnique({
+          where: {
+            houseId_month: {
+              houseId: house.id,
+              month: monthDate,
             },
+          },
+        });
+
+        if (!reading) {
+          results.failed++;
+          results.errors.push({
+            houseNumber: house.houseNumber,
+            error: 'Reading not found for this month',
           });
+          continue;
+        }
 
-          if (!reading) {
-            results.failed++;
-            results.errors.push({
-              houseNumber: house.houseNumber,
-              error: 'Reading not found for this month',
-            });
-            continue;
-          }
+        // Check if bill is already generated
+        if (reading.billStatus === BillStatus.GENERATED || 
+            reading.billStatus === BillStatus.PAID || 
+            reading.billStatus === BillStatus.PARTIALLY_PAID) {
+          results.skipped++;
+          results.errors.push({
+            houseNumber: house.houseNumber,
+            error: `Bill already ${reading.billStatus.toLowerCase()}`,
+          });
+          continue;
+        }
 
-          if (reading.billStatus === BillStatus.GENERATED || reading.billStatus === BillStatus.PAID) {
-            results.failed++;
-            results.errors.push({
-              houseNumber: house.houseNumber,
-              error: 'Bill already generated',
-            });
-            continue;
-          }
+        // Validate electricity reading is entered
+        if (reading.electricityImportReading === 0) {
+          results.failed++;
+          results.errors.push({
+            houseNumber: house.houseNumber,
+            error: 'Electricity reading has not been entered',
+          });
+          continue;
+        }
 
-          // Generate bill using the same logic
-          // This is a simplified version - you might want to call the generateBill method
-          // or extract the logic into a helper function
+        // Validate water reading is entered
+        if (reading.waterReading === 0) {
+          results.failed++;
+          results.errors.push({
+            houseNumber: house.houseNumber,
+            error: 'Water reading has not been entered',
+          });
+          continue;
+        }
 
-          const previousMonthDate = new Date(monthDate);
-          previousMonthDate.setMonth(previousMonthDate.getMonth() - 1);
+        // Get previous month's reading (optional - may not exist for first month)
+        const previousMonthDate = new Date(monthDate);
+        previousMonthDate.setMonth(previousMonthDate.getMonth() - 1);
 
-          const previousReading = await prisma.reading.findUnique({
-            where: {
-              houseId_month: {
-                houseId: house.id,
-                month: previousMonthDate,
-              },
+        const previousReading = await prisma.reading.findUnique({
+          where: {
+            houseId_month: {
+              houseId: house.id,
+              month: previousMonthDate,
             },
+          },
+        });
+
+        const isFirstMonth = !previousReading;
+
+        // Validate charges are calculated
+        if (
+          Number(reading.fixedCharge) === 0 &&
+          Number(reading.electricityCharge) === 0 &&
+          Number(reading.electricityDuty) === 0
+        ) {
+          results.failed++;
+          results.errors.push({
+            houseNumber: house.houseNumber,
+            error: 'Electricity charges not calculated (all charges are 0)',
           });
+          continue;
+        }
 
-          if (!previousReading) {
-            results.failed++;
-            results.errors.push({
-              houseNumber: house.houseNumber,
-              error: 'Previous reading not found',
-            });
-            continue;
-          }
+        if (
+          Number(house.licenseFee) === 0 &&
+          Number(house.residenceFee) === 0 &&
+          Number(reading.maintenanceCharge) === 0 &&
+          Number(reading.waterCharge) === 0
+        ) {
+          results.failed++;
+          results.errors.push({
+            houseNumber: house.houseNumber,
+            error: 'Water and other charges not configured (all are 0)',
+          });
+          continue;
+        }
 
-          // Calculate bills (same formula as generateBill)
-          const previousBill1Arrear =
+        // Calculate Bill 1 (Electricity Bill)
+        // If no previous reading exists, arrears will be 0
+        let previousBill1Arrear = 0;
+        
+        if (previousReading) {
+          previousBill1Arrear =
             previousReading.paidAmount === null
               ? Number(previousReading.bill1After15)
               : previousReading.bill1Arrear !== null
               ? Number(previousReading.bill1Arrear)
               : 0;
+        }
 
-          const bill1Upto15 =
-            Number(reading.fixedCharge) +
-            Number(reading.electricityCharge) +
-            Number(reading.electricityDuty) +
-            previousBill1Arrear;
+        const bill1Upto15 =
+          Number(reading.fixedCharge) +
+          Number(reading.electricityCharge) +
+          Number(reading.electricityDuty) +
+          previousBill1Arrear;
 
-          const bill1After15 = bill1Upto15 + bill1Upto15 * 0.015;
+        const bill1After15 = bill1Upto15 + bill1Upto15 * 0.015;
 
-          const previousBill2Arrear =
+        // Calculate Bill 2 (Water + Other Charges)
+        // If no previous reading exists, arrears will be 0
+        let previousBill2Arrear = 0;
+        
+        if (previousReading) {
+          previousBill2Arrear =
             previousReading.paidAmount === null
               ? Number(previousReading.bill2After15)
               : previousReading.bill2Arrear !== null
               ? Number(previousReading.bill2Arrear)
               : 0;
-
-          let bill2Upto15 = 0;
-
-          if (reading.otherCharges && !isNaN(Number(reading.otherCharges))) {
-            bill2Upto15 =
-              Number(house.licenseFee) +
-              Number(house.residenceFee) +
-              Number(reading.maintenanceCharge) +
-              Number(reading.otherCharges) +
-              Number(reading.waterCharge) +
-              previousBill2Arrear;
-          } else {
-            bill2Upto15 =
-              Number(house.licenseFee) +
-              Number(house.residenceFee) +
-              Number(reading.maintenanceCharge) +
-              Number(reading.waterCharge) +
-              previousBill2Arrear;
-          }
-
-          const bill2After15 = bill2Upto15 + bill2Upto15 * 0.015;
-
-          const totalBillUpto15 = bill1Upto15 + bill2Upto15;
-          const totalBillAfter15 = bill1After15 + bill2After15;
-
-          await prisma.reading.update({
-            where: { id: reading.id },
-            data: {
-              bill1Upto15,
-              bill1After15,
-              bill2Upto15,
-              bill2After15,
-              totalBillUpto15,
-              totalBillAfter15,
-              billStatus: BillStatus.GENERATED,
-              billGeneratedAt: new Date(),
-            },
-          });
-
-          results.success++;
-          results.generated.push({
-            houseNumber: house.houseNumber,
-            readingId: reading.id,
-          });
-        } catch (error) {
-          results.failed++;
-          results.errors.push({
-            houseNumber: house.houseNumber,
-            error: error instanceof Error ? error.message : 'Unknown error',
-          });
         }
-      }
 
-      return res.status(200).json({
-        success: true,
-        message: `Bulk bill generation completed. Success: ${results.success}, Failed: ${results.failed}`,
-        data: results,
-      });
-    } catch (error) {
-      return res.status(500).json({
-        success: false,
-        message: 'Bulk bill generation failed',
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+        let bill2Upto15 = 0;
+
+        if (
+          reading.otherCharges &&
+          !isNaN(Number(reading.otherCharges)) &&
+          reading.otherCharges !== null
+        ) {
+          bill2Upto15 =
+            Number(house.licenseFee) +
+            Number(house.residenceFee) +
+            Number(reading.maintenanceCharge) +
+            Number(reading.otherCharges) +
+            Number(reading.waterCharge) +
+            previousBill2Arrear;
+        } else {
+          bill2Upto15 =
+            Number(house.licenseFee) +
+            Number(house.residenceFee) +
+            Number(reading.maintenanceCharge) +
+            Number(reading.waterCharge) +
+            previousBill2Arrear;
+        }
+
+        const bill2After15 = bill2Upto15 + bill2Upto15 * 0.015;
+
+        // Calculate total bills
+        const totalBillUpto15 = bill1Upto15 + bill2Upto15;
+        const totalBillAfter15 = bill1After15 + bill2After15;
+
+        // Update the reading with bill amounts
+        await prisma.reading.update({
+          where: { id: reading.id },
+          data: {
+            bill1Upto15,
+            bill1After15,
+            bill2Upto15,
+            bill2After15,
+            totalBillUpto15,
+            totalBillAfter15,
+            billStatus: BillStatus.GENERATED,
+            billGeneratedAt: new Date(),
+          },
+        });
+
+        results.success++;
+        if (isFirstMonth) {
+          results.firstMonthBills++;
+        }
+        
+        results.generated.push({
+          houseNumber: house.houseNumber,
+          readingId: reading.id,
+          totalBill: totalBillAfter15,
+          isFirstMonth,
+        });
+      } catch (error) {
+        results.failed++;
+        results.errors.push({
+          houseNumber: house.houseNumber,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
     }
+
+    const message = results.firstMonthBills > 0
+      ? `Bulk bill generation completed. Success: ${results.success} (${results.firstMonthBills} first month bills), Failed: ${results.failed}, Skipped: ${results.skipped}`
+      : `Bulk bill generation completed. Success: ${results.success}, Failed: ${results.failed}, Skipped: ${results.skipped}`;
+
+    return res.status(200).json({
+      success: true,
+      message,
+      data: results,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Bulk bill generation failed',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
+}
 
   // Get bill summary for a house
   static async getBillSummary(req: Request, res: Response) {
