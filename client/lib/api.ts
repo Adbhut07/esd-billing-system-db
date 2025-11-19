@@ -27,10 +27,13 @@ api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      // Handle unauthorized - redirect to login
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      window.location.href = '/login';
+      // Handle unauthorized - redirect to login only if tokens exist
+      const hasTokens = localStorage.getItem('accessToken') || localStorage.getItem('refreshToken');
+      if (hasTokens) {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        window.location.href = '/';
+      }
     }
     return Promise.reject(error);
   }

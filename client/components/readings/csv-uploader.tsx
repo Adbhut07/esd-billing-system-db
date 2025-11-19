@@ -13,6 +13,7 @@ interface CSVUploaderProps {
 
 export function CSVUploader({ onFileUpload, accept = ".csv,.xlsx" }: CSVUploaderProps) {
   const [error, setError] = useState<string | null>(null)
+  const [fileName, setFileName] = useState<string>("No file selected")
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const parseCSV = (text: string) => {
@@ -51,6 +52,7 @@ export function CSVUploader({ onFileUpload, accept = ".csv,.xlsx" }: CSVUploader
     const file = e.target.files?.[0]
     if (!file) return
 
+    setFileName(file.name)
     setError(null)
 
     try {
@@ -81,7 +83,7 @@ export function CSVUploader({ onFileUpload, accept = ".csv,.xlsx" }: CSVUploader
         <Button type="button" onClick={() => fileInputRef.current?.click()} variant="outline">
           Choose File
         </Button>
-        <span className="text-sm text-gray-600">{fileInputRef.current?.files?.[0]?.name || "No file selected"}</span>
+        <span className="text-sm text-gray-600">{fileName}</span>
       </div>
     </div>
   )
