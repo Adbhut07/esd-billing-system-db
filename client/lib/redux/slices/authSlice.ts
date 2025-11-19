@@ -73,6 +73,9 @@ const authSlice = createSlice({
       if (typeof window !== "undefined") {
         localStorage.removeItem("accessToken")
         localStorage.removeItem("refreshToken")
+        localStorage.removeItem("persist:root")
+        // Force redirect to login page
+        window.location.href = '/'
       }
     },
     clearError: (state) => {

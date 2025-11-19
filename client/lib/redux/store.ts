@@ -1,6 +1,24 @@
 import { configureStore, combineReducers } from "@reduxjs/toolkit"
 import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from "redux-persist"
-import storage from "redux-persist/lib/storage"
+import createWebStorage from "redux-persist/lib/storage/createWebStorage"
+
+// Create a noop storage for SSR
+const createNoopStorage = () => {
+  return {
+    getItem(_key: string): Promise<null> {
+      return Promise.resolve(null)
+    },
+    setItem(_key: string, _value: unknown): Promise<unknown> {
+      return Promise.resolve(_value)
+    },
+    removeItem(_key: string): Promise<void> {
+      return Promise.resolve()
+    },
+  }
+}
+
+// Use noop storage during SSR, real storage on client
+const storage = typeof window !== "undefined" ? createWebStorage("local") : createNoopStorage()
 import authReducer from "./slices/authSlice"
 import houseReducer from "./slices/houseSlice"
 import electricityReducer from "./slices/electricitySlice"

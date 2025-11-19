@@ -39,6 +39,9 @@ interface Bill {
     houseNumber: string;
     consumerCode: string;
     licenseeName: string;
+    department?: string;
+    licenseFee: number;
+    residenceFee: number;
     mohalla: {
       id: number;
       name: string;

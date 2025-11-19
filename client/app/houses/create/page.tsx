@@ -23,7 +23,7 @@ export default function CreateHousePage() {
   const router = useRouter()
   const dispatch = useAppDispatch()
   const { loading } = useAppSelector((state) => state.house)
-  const { mohallas, loading: mohallasLoading } = useAppSelector((state) => state.mohalla)
+  const { mohallas } = useAppSelector((state) => state.mohalla)
   const [formData, setFormData] = useState({
     mohallaId: '',
     houseNumber: '',
